@@ -1,12 +1,12 @@
 'use strict';
 
 const EventEmitter = require('events');
-const puppeteer = require('puppeteer-extra')
-const anonymize = require('puppeteer-extra-plugin-anonymize-ua')
-const StealthPlugin = require('puppeteer-extra-plugin-stealth')
+const puppeteer = require('puppeteer-extra');
+const anonymize = require('puppeteer-extra-plugin-anonymize-ua');
+const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 
-puppeteer.use(StealthPlugin())
-puppeteer.use(anonymize())
+puppeteer.use(StealthPlugin());
+puppeteer.use(anonymize());
 const moduleRaid = require('@pedroslopez/moduleraid/moduleraid');
 const jsQR = require('jsqr');
 
