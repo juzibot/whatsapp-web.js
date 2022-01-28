@@ -3,7 +3,7 @@ name: Deploy from tags
 on:
   push:
     branches:
-      - main
+      - juzi
 
 jobs:
   build:
