@@ -81,7 +81,7 @@ class Client extends EventEmitter {
             page = (await browser.pages())[0];
         }        
         
-        page.setUserAgent(this.options.userAgent);
+        await page.setUserAgent(this.options.userAgent);
 
         this.pupBrowser = browser;
         this.pupPage = page;
@@ -114,7 +114,7 @@ class Client extends EventEmitter {
         const KEEP_PHONE_CONNECTED_IMG_SELECTOR = '[data-icon="intro-md-beta-logo-dark"], [data-icon="intro-md-beta-logo-light"], [data-asset-intro-image-light="true"], [data-asset-intro-image-dark="true"]';
 
         if (this.options.session) {
-            // Check if session restore was successfull 
+            // Check if session restore was successful
             try {
                 await page.waitForSelector(KEEP_PHONE_CONNECTED_IMG_SELECTOR, { timeout: this.options.authTimeoutMs });
             } catch (err) {
@@ -173,10 +173,22 @@ class Client extends EventEmitter {
             this._qrRefreshInterval = setInterval(getQrCode, this.options.qrRefreshIntervalMs);
 
             // Wait for code scan
-            await page.waitForSelector(KEEP_PHONE_CONNECTED_IMG_SELECTOR, { timeout: 0 });
-            clearInterval(this._qrRefreshInterval);
-            this._qrRefreshInterval = undefined;
+            try {
+                await page.waitForSelector(KEEP_PHONE_CONNECTED_IMG_SELECTOR, { timeout: 0 });
+                clearInterval(this._qrRefreshInterval);
+                this._qrRefreshInterval = undefined;
+            } catch(error) {
+                if (
+                    error.name === 'ProtocolError' && 
+                    error.message && 
+                    error.message.match(/Target closed/)
+                ) {
+                    // something has called .destroy() while waiting
+                    return;
+                }
 
+                throw error;
+            }
         }
 
         await page.evaluate(ExposeStore, moduleRaid.toString());
@@ -232,8 +244,6 @@ class Client extends EventEmitter {
 
         // Register events
         await page.exposeFunction('onAddMessageEvent', msg => {
-            if (!msg.isNewMsg) return;
-
             if (msg.type === 'gp2') {
                 const notification = new GroupNotification(this, msg);
                 if (msg.subtype === 'add' || msg.subtype === 'invite') {
@@ -418,7 +428,6 @@ class Client extends EventEmitter {
         });
         
         await page.evaluate(() => {
-            window.Store.Msg.on('add', (msg) => { if (msg.isNewMsg) window.onAddMessageEvent(window.WWebJS.getMessageModel(msg)); });
             window.Store.Msg.on('change', (msg) => { window.onChangeMessageEvent(window.WWebJS.getMessageModel(msg)); });
             window.Store.Msg.on('change:type', (msg) => { window.onChangeMessageTypeEvent(window.WWebJS.getMessageModel(msg)); });
             window.Store.Msg.on('change:ack', (msg,ack) => { window.onMessageAckEvent(window.WWebJS.getMessageModel(msg), ack); });
@@ -427,6 +436,16 @@ class Client extends EventEmitter {
             window.Store.AppState.on('change:state', (_AppState, state) => { window.onAppStateChangedEvent(state); });
             window.Store.Conn.on('change:battery', (state) => { window.onBatteryStateChangedEvent(state); });
             window.Store.Call.on('add', (call) => { window.onIncomingCall(call); });
+            window.Store.Msg.on('add', (msg) => { 
+                if (msg.isNewMsg) {
+                    if(msg.type === 'ciphertext') {
+                        // defer message event until ciphertext is resolved (type changed)
+                        msg.once('change:type', (_msg) => window.onAddMessageEvent(window.WWebJS.getMessageModel(_msg)));
+                    } else {
+                        window.onAddMessageEvent(window.WWebJS.getMessageModel(msg)); 
+                    }
+                }
+            });
         });
 
         /**
@@ -531,7 +550,7 @@ class Client extends EventEmitter {
             quotedMessageId: options.quotedMessageId,
             parseVCards: options.parseVCards === false ? false : true,
             mentionedJidList: Array.isArray(options.mentions) ? options.mentions.map(contact => contact.id._serialized) : [],
-            ...options.extra
+            extraOptions: options.extra
         };
 
         const sendSeen = typeof options.sendSeen === 'undefined' ? true : options.sendSeen;
@@ -739,7 +758,7 @@ class Client extends EventEmitter {
         return await this.pupPage.evaluate(async chatId => {
             let chat = await window.Store.Chat.get(chatId);
             await window.Store.Cmd.archiveChat(chat, true);
-            return chat.archive;
+            return true;
         }, chatId);
     }
 
@@ -751,7 +770,7 @@ class Client extends EventEmitter {
         return await this.pupPage.evaluate(async chatId => {
             let chat = await window.Store.Chat.get(chatId);
             await window.Store.Cmd.archiveChat(chat, false);
-            return chat.archive;
+            return false;
         }, chatId);
     }
 
