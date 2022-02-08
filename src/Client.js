@@ -80,7 +80,7 @@ class Client extends EventEmitter {
             browser = await puppeteer.launch(this.options.puppeteer);
             page = (await browser.pages())[0];
         }        
-        
+
         await page.setUserAgent(this.options.userAgent);
 
         this.pupBrowser = browser;
@@ -476,7 +476,7 @@ class Client extends EventEmitter {
         if (this._qrRefreshInterval) {
             clearInterval(this._qrRefreshInterval);
         }
-        // await this.pupBrowser.close();
+        await this.pupBrowser.close();
         await this.initialize();
     }
 
