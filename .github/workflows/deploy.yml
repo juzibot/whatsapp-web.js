@@ -2,9 +2,8 @@ name: Deploy from tags
 
 on:
   push:
-    branches:
-      - juzi
-
+    tags:
+      - 'v*'
 jobs:
   publish-npm:
     runs-on: ubuntu-latest
