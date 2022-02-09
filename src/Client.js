@@ -483,7 +483,7 @@ class Client extends EventEmitter {
     }
 
     async stop() {
-        await this.destroy(true)
+        await this.destroy(true);
     }
 
     /**
