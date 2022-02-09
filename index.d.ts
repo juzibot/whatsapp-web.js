@@ -32,7 +32,7 @@ declare namespace WAWebJS {
         /** Pins the Chat and returns its new Pin state */
         pinChat(chatId: string): Promise<boolean>
 
-        /** Unpins the Chat and returns its new Pin state */
+        /** Unpins the  Chat and returns its new Pin state */
         unpinChat(chatId: string): Promise<boolean>
 
         /**
@@ -42,8 +42,11 @@ declare namespace WAWebJS {
          */
         createGroup(name: string, participants: Contact[] | string[]): Promise<CreateGroupResult>
 
-        /** Closes the client */
+        /** Destroys the client and restart */
         destroy(): Promise<void>
+
+        /** Stop the client */
+        stop(): Promise<void>
 
         /** Logs out the client, closing the current session */
         logout(): Promise<void>
