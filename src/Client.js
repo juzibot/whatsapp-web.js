@@ -472,12 +472,18 @@ class Client extends EventEmitter {
     /**
      * Closes the client
      */
-    async destroy() {
+    async destroy(stop = false) {
         if (this._qrRefreshInterval) {
             clearInterval(this._qrRefreshInterval);
         }
         await this.pupBrowser.close();
-        await this.initialize();
+        if (!stop) {
+            await this.initialize();
+        }
+    }
+
+    async stop() {
+        await this.destroy(true)
     }
 
     /**
