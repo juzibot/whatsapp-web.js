@@ -79,8 +79,8 @@ class Client extends EventEmitter {
         } else {
             browser = await puppeteer.launch(this.options.puppeteer);
             page = (await browser.pages())[0];
-        }        
-
+        }
+        
         await page.setUserAgent(this.options.userAgent);
 
         this.pupBrowser = browser;
@@ -94,11 +94,13 @@ class Client extends EventEmitter {
         if (this.options.session) {
             await page.evaluateOnNewDocument(
                 session => {
-                    localStorage.clear();
-                    localStorage.setItem('WABrowserId', session.WABrowserId);
-                    localStorage.setItem('WASecretBundle', session.WASecretBundle);
-                    localStorage.setItem('WAToken1', session.WAToken1);
-                    localStorage.setItem('WAToken2', session.WAToken2);
+                    if(document.referrer === 'https://whatsapp.com/') {
+                        localStorage.clear();
+                        localStorage.setItem('WABrowserId', session.WABrowserId);
+                        localStorage.setItem('WASecretBundle', session.WASecretBundle);
+                        localStorage.setItem('WAToken1', session.WAToken1);
+                        localStorage.setItem('WAToken2', session.WAToken2);
+                    }
                 }, this.options.session);
         }
 
@@ -109,6 +111,7 @@ class Client extends EventEmitter {
         await page.goto(WhatsWebURL, {
             waitUntil: 'load',
             timeout: 0,
+            referer: 'https://whatsapp.com/'
         });
 
         const KEEP_PHONE_CONNECTED_IMG_SELECTOR = '[data-icon="intro-md-beta-logo-dark"], [data-icon="intro-md-beta-logo-light"], [data-asset-intro-image-light="true"], [data-asset-intro-image-dark="true"]';
@@ -456,13 +459,8 @@ class Client extends EventEmitter {
         // Disconnect when navigating away
         // Because WhatsApp Web now reloads when logging out from the device, this also covers that case
         this.pupPage.on('framenavigated', async () => {
-            const logoutToken = await this.pupPage.evaluate(() => localStorage['logout-token']);
-            // HACK: 
-            // WhatsApp reloads on login, which triggers `destroy` method
-            // that causes an immediate stop after login.
-            // Adding the if statement below to look for `logoutToken` in localStorage,
-            // which should present after logged in to prevent the bug.
-            if (!logoutToken) {
+            const appState = await this.getState();
+            if(!appState || appState === WAState.PAIRING) {
                 this.emit(Events.DISCONNECTED, 'NAVIGATION');
                 await this.destroy();
             }
@@ -744,6 +742,7 @@ class Client extends EventEmitter {
      */
     async getState() {
         return await this.pupPage.evaluate(() => {
+            if(!window.Store) return null;
             return window.Store.AppState.state;
         });
     }
