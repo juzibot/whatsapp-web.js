@@ -67,6 +67,22 @@ exports.ExposeStore = (moduleRaidStr) => {
             });
         };
     }
+
+    if (!window.Store.Chat.models) {
+        window.Store.Chat.models = window.Store.Chat._models;
+    }
+
+    if (!window.Store.Contact.models) {
+        window.Store.Contact.models = window.Store.Contact._models;
+    }
+
+    if (!window.Store.Blocklist.models) {
+        window.Store.Blocklist.models = window.Store.Blocklist._models;
+    }
+
+    if (!window.Store.Label.models) {
+        window.Store.Label.models = window.Store.Label._models;
+    }
 };
 
 exports.LoadUtils = () => {
