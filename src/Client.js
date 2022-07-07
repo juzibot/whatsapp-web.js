@@ -1101,6 +1101,27 @@ class Client extends EventEmitter {
 
         return blockedContacts.map(contact => ContactFactory.create(this.client, contact));
     }
+
+    /**
+     * Try to find a message with id.id or id._serialized
+     * @returns {Promise<Message | undefined>}
+     */
+    async getMessageWithId(id) {
+        const message = await this.pupPage.evaluate(async (id) => {
+            let message;
+            message = window.Store.Msg.get(id);
+            if (message) {
+                return message;
+            }
+            for (const key in window.Store.Msg._index) {
+                const msg = window.Store.Msg.get(key);
+                if (msg.id.id === id) {
+                    return msg;
+                }
+            }
+        }, id);
+        return message;
+    }
 }
 
 module.exports = Client;
