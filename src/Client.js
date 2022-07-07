@@ -1116,11 +1116,11 @@ class Client extends EventEmitter {
             for (const key in window.Store.Msg._index) {
                 const msg = window.Store.Msg.get(key);
                 if (msg.id.id === id) {
-                    return msg;
+                    return JSON.stringify(msg);
                 }
             }
         }, id);
-        return message;
+        return message ? JSON.parse(message) : undefined;
     }
 }
 
