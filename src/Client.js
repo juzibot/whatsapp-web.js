@@ -512,6 +512,11 @@ class Client extends EventEmitter {
             }
         });
 
+        await page.exposeFunction('onContactNameChange', async (contact, newName, oldName) => {
+            const whatsappContact = await this.getContactById(contact.id);
+            this.emit(Events.CONTACT_NAME_CHANGE, whatsappContact, newName, oldName);
+        });
+
         await page.evaluate(() => {
             window.Store.Msg.on('change', (msg) => { window.onChangeMessageEvent(window.WWebJS.getMessageModel(msg)); });
             window.Store.Msg.on('change:type', (msg) => { window.onChangeMessageTypeEvent(window.WWebJS.getMessageModel(msg)); });
@@ -531,7 +536,7 @@ class Client extends EventEmitter {
                     }
                 }
             });
-            
+            window.Store.Contact.on('change:name', (contact, newName, oldName) => {window.onContactNameChange(contact, newName, oldName);});
             {
                 const module = window.Store.createOrUpdateReactionsModule;
                 const ogMethod = module.createOrUpdateReactions;
