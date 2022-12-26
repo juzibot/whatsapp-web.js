@@ -274,6 +274,9 @@ declare namespace WAWebJS {
 
         /** Emitted when the RemoteAuth session is saved successfully on the external Database */
         on(event: 'remote_session_saved', listener: () => void): this
+
+        /** Emitted when a contact name changes */
+        on(event: 'contact_name_change', listener: (contact: Contact, newName: string, oldName: string) => void): this
     }
 
     /** Current connection information */
