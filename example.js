@@ -261,3 +261,7 @@ client.on('disconnected', (reason) => {
     console.log('Client was logged out', reason);
 });
 
+client.on('contact_name_change', (contact, newName, oldName) => {
+    console.log('contact name change', contact, newName, oldName);
+});
+
