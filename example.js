@@ -222,6 +222,16 @@ client.on('message', async msg => {
     } else if (msg.body === '!removelabels') {
         const chat = await msg.getChat();
         await chat.changeLabels([]);
+    } else if (msg.body === '!businesscontact') {
+        const contact = await client.getContactById('14692648170@c.us');
+        client.sendMessage(msg.from, contact);
+    } else if (msg.body === '!product') {
+        client.sendMessage(msg.from, 'https://liquidomarket.myshopify.com/products/fitbit-versa-3-health-fitness-smartwatch-black');
+    } else if (msg.body === '!store') {
+        client.sendMessage(msg.from, 'https://wa.me/c/14692648170');
+    } else if (msg.body === '!contact') {
+        const contact = await client.getContactById('8613812345678@c.us');
+        client.sendMessage(msg.from, contact);
     }
 });
 
