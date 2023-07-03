@@ -162,10 +162,45 @@ exports.LoadUtils = () => {
         let vcardOptions = {};
         if (options.contactCard) {
             let contact = window.Store.Contact.get(options.contactCard);
+            let vcardStr;
+            let contactName;
+            if (typeof contact.isBusiness === 'boolean') {
+                // contact loaded
+                if (contact.isBusiness) {
+                    vcardStr = 'BEGIN:VCARD\n' +
+                        'VERSION:3.0\n' +
+                        `N:;${contact.verifiedName};;;\n` +
+                        `FN:${contact.verifiedName}\n` +
+                        `X-WA-BIZ-NAME:${contact.verifiedName}\n` +
+                        contact.businessProfile.description ? `X-WA-BIZ-DESCRIPTION:${contact.businessProfile.description}\n` : '' +
+                        `ORG:${contact.verifiedName};\n` +
+                        `TEL;type=CELL;type=VOICE;waid=${contact.id.user}:${window.Store.NumberInfo.formatPhone(contact.id.user)}\n` +
+                        'END:VCARD';
+                } else {
+                    vcardStr = window.Store.VCard.vcardFromContactModel(contact).vcard;
+                    contactName = contact.formattedName;
+                }
+            } else {
+                // contact not loaded
+                const result = await window.Store.QueryExist(contact.id);
+                if (!result || !result.biz) {
+                    vcardStr = window.Store.VCard.vcardFromContactModel(contact).vcard;
+                    contactName = contact.formattedName;
+                } else {
+                    vcardStr = 'BEGIN:VCARD\n' +
+                        'VERSION:3.0\n' +
+                        `N:;${result.bizInfo.verifiedName.name};;;\n` +
+                        `FN:${result.bizInfo.verifiedName.name}\n` +
+                        `X-WA-BIZ-NAME:${result.bizInfo.verifiedName.name}\n` +
+                        `ORG:${result.bizInfo.verifiedName.name};\n` +
+                        `TEL;type=CELL;type=VOICE;waid=${result.wid.user}:${window.Store.NumberInfo.formatPhone(result.wid.user)}\n` +
+                        'END:VCARD';
+                }
+            }
             vcardOptions = {
-                body: window.Store.VCard.vcardFromContactModel(contact).vcard,
+                body: vcardStr,
                 type: 'vcard',
-                vcardFormattedName: contact.formattedName
+                vcardFormattedName: contactName,
             };
             delete options.contactCard;
         } else if (options.contactCardList) {
