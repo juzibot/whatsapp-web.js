@@ -819,6 +819,9 @@ class Client extends EventEmitter {
         } else if (content instanceof List) {
             internalOptions.list = content;
             content = '';
+        } else if (content instanceof UrlLink) {
+            internalOptions.urlLink = content;
+            content = '';
         }
 
         if (internalOptions.sendMediaAsSticker && internalOptions.attachment) {
