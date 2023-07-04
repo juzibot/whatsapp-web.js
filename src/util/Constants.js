@@ -111,6 +111,16 @@ exports.MessageTypes = {
 };
 
 /**
+ * Message subtypes
+ * @readonly
+ * @enum {string}
+ */
+
+exports.MessageSubtypes = {
+    URL_LINK: 'url'
+};
+
+/**
  * Group notification types
  * @readonly
  * @enum {string}
