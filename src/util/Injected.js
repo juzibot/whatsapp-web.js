@@ -282,6 +282,20 @@ exports.LoadUtils = () => {
             delete listOptions.list.footer;
         }
 
+        let urlLinkOptions = {};
+        if(options.urlLink) {
+            urlLinkOptions = {
+                type: 'chat',
+                subtype: 'url',
+                thumbnail: options.urlLink.thumbnailData,
+                body: options.urlLink.url,
+                canonicalUrl: options.urlLink.url,
+                matchedText: options.urlLink.url,
+                title: options.urlLink.title,
+                description: options.urlLink.description,
+            };
+        }
+
         const meUser = window.Store.User.getMaybeMeUser();
         const isMD = window.Store.MDBackend;
         const newId = await window.Store.MsgKey.newId();
@@ -319,6 +333,7 @@ exports.LoadUtils = () => {
             ...vcardOptions,
             ...buttonOptions,
             ...listOptions,
+            ...urlLinkOptions,
             ...extraOptions
         };
 

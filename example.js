@@ -1,4 +1,4 @@
-const { Client, Location, List, Buttons, LocalAuth } = require('./index');
+const { Client, Location, List, Buttons, LocalAuth, UrlLink, MessageMedia } = require('./index');
 
 const client = new Client({
     authStrategy: new LocalAuth(),
@@ -232,6 +232,14 @@ client.on('message', async msg => {
     } else if (msg.body === '!contact') {
         const contact = await client.getContactById('8613812345678@c.us');
         client.sendMessage(msg.from, contact);
+    } else if (msg.body === '!link') {
+        const urlLink = new UrlLink(
+            'https://www.baidu.com',
+            '百度',
+            '百度一下，你也不知道',
+            await MessageMedia.fromUrl('https://www.baidu.com/img/PCtm_d9c8750bed0b3c7d089fa7d55720d6cf.png')
+        );
+        client.sendMessage(msg.from, urlLink);
     }
 });
 

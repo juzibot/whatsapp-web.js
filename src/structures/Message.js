@@ -3,10 +3,11 @@
 const Base = require('./Base');
 const MessageMedia = require('./MessageMedia');
 const Location = require('./Location');
+const UrlLink = require('./UrlLink');
 const Order = require('./Order');
 const Payment = require('./Payment');
 const Reaction = require('./Reaction');
-const {MessageTypes} = require('../util/Constants');
+const {MessageTypes, MessageSubtypes} = require('../util/Constants');
 const {Contact} = require('./Contact');
 
 /**
@@ -152,6 +153,12 @@ class Message extends Base {
          * @type {Location}
          */
         this.location = data.type === MessageTypes.LOCATION ? new Location(data.lat, data.lng, data.loc) : undefined;
+
+        /**
+         * UrlLink information contained in the message, if the message is type "text" and subtype is "url"
+         * @type {UrlLink}
+         */
+        this.urlLink = data.type === MessageTypes.TEXT && data.subtype === MessageSubtypes.URL_LINK ? new UrlLink(data.body, data.title, data.description, new MessageMedia('image/jpg', data.thumbnail, 'thumbnail.jpg', 0)) : undefined;
 
         /**
          * List of vCards contained in the message.
@@ -335,7 +342,7 @@ class Message extends Base {
      * through the specified Chat. If not, it will send the message
      * in the same Chat as the original message was sent.
      *
-     * @param {string|MessageMedia|Location} content
+     * @param {string|MessageMedia|Location|UrlLink} content
      * @param {string} [chatId]
      * @param {MessageSendOptions} [options]
      * @returns {Promise<Message>}

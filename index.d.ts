@@ -667,6 +667,11 @@ declare namespace WAWebJS {
         TEMPLATE_BUTTON_REPLY = 'template_button_reply',
     }
 
+    /** Message subtypes */
+    export enum MessageSubtypes {
+        URL_LINK = 'url',
+    }
+
     /** Client status */
     export enum Status {
         INITIALIZING = 0,
@@ -779,6 +784,8 @@ declare namespace WAWebJS {
         isStarred: boolean,
         /** Location information contained in the message, if the message is type "location" */
         location: Location,
+        /** UrlLink information contained in the message, if the message is type "url" */
+        urlLink: UrlLink,
         /** List of vCards contained in the message */
         vCards: string[],
         /** Invite v4 info */
@@ -894,6 +901,15 @@ declare namespace WAWebJS {
         constructor(latitude: number, longitude: number, description?: string)
     }
 
+    export class UrlLink {
+        url: string
+        title?: string | null
+        description?: string | null
+        thumbnailData?: string | null
+
+        constructor(url: string, title: string, description: string, thumbnailMedia: MessageMedia)
+    }
+
     export interface Label {
         /** Label name */
         name: string,
@@ -983,7 +999,7 @@ declare namespace WAWebJS {
         static fromUrl: (url: string, options?: MediaFromURLOptions) => Promise<MessageMedia>
     }
 
-    export type MessageContent = string | MessageMedia | Location | Contact | Contact[] | List | Buttons
+    export type MessageContent = string | MessageMedia | Location | Contact | Contact[] | List | Buttons | UrlLink
 
     /**
      * Represents a Contact on WhatsApp
