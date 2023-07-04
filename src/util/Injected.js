@@ -296,6 +296,34 @@ exports.LoadUtils = () => {
             };
         }
 
+        let productOptions = {};
+        if(options.productMessage) {
+            const fileData = await window.WWebJS.processMediaData(options.productMessage.thumbnailMedia, {
+                forceVoice: false,
+                forceDocument: false,
+                forceGif: false
+            });
+            productOptions = {
+                type: 'product',
+                title: options.productMessage.title,
+                description: options.productMessage.description,
+                businessOwnerJid: options.productMessage.businessOwnerJid,
+                productId: options.productMessage.productId,
+                retailerId: options.productMessage.retailerId,
+                url: options.productMessage.url,
+                currencyCode: options.productMessage.currency,
+                priceAmount1000: options.productMessage.price,
+                body: fileData.__x_preview,
+                filehash: fileData.__x_filehash,
+                encFilehash: fileData.__x_encFilehash,
+                size: fileData.__x_size,
+                mediaKey: fileData.__x_mediaKey,
+                mediaKeyTimestamp: fileData.__x_mediaKeyTimestamp,
+                width: fileData.__x_fullWidth,
+                height: fileData.__x_fullHeight,
+            };
+        }
+
         const meUser = window.Store.User.getMaybeMeUser();
         const isMD = window.Store.MDBackend;
         const newId = await window.Store.MsgKey.newId();
@@ -334,6 +362,7 @@ exports.LoadUtils = () => {
             ...buttonOptions,
             ...listOptions,
             ...urlLinkOptions,
+            ...productOptions,
             ...extraOptions
         };
 

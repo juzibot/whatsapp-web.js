@@ -7,6 +7,7 @@ module.exports = {
     GroupChat: require('./GroupChat'),
     Location: require('./Location'),
     UrlLink: require('./UrlLink'),
+    ProductMessage: require('./ProductMessage'),
     Message: require('./Message'),
     MessageMedia: require('./MessageMedia'),
     PrivateChat: require('./PrivateChat'),

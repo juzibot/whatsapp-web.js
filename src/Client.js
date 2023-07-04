@@ -16,7 +16,7 @@ const { ExposeStore, LoadUtils } = require('./util/Injected');
 const ChatFactory = require('./factories/ChatFactory');
 const ContactFactory = require('./factories/ContactFactory');
 const WebCacheFactory = require('./webCache/WebCacheFactory');
-const { ClientInfo, Message, MessageMedia, Contact, Location, UrlLink, GroupNotification, Label, Call, Buttons, List, Reaction, Chat } = require('./structures');
+const { ClientInfo, Message, MessageMedia, Contact, Location, UrlLink, ProductMessage, GroupNotification, Label, Call, Buttons, List, Reaction, Chat } = require('./structures');
 const LegacySessionAuth = require('./authStrategies/LegacySessionAuth');
 const NoAuth = require('./authStrategies/NoAuth');
 
@@ -771,7 +771,7 @@ class Client extends EventEmitter {
     /**
      * Send a message to a specific chatId
      * @param {string} chatId
-     * @param {string|MessageMedia|Location|UrlLink|Contact|Array<Contact>|Buttons|List} content
+     * @param {string|MessageMedia|Location|UrlLink|ProductMessage|Contact|Array<Contact>|Buttons|List} content
      * @param {MessageSendOptions} [options] - Options used when sending the message
      * 
      * @returns {Promise<Message>} Message that was just sent
@@ -822,6 +822,19 @@ class Client extends EventEmitter {
         } else if (content instanceof UrlLink) {
             internalOptions.urlLink = content;
             content = '';
+        } else if (content instanceof ProductMessage) {
+            const productData = (await Util.queryProduct(content.businessOwnerJid, content.productId, this.pupPage)).data;
+            internalOptions.productMessage = {
+                title: content.title,
+                description: content.description,
+                businessOwnerJid: content.businessOwnerJid,
+                productId: content.productId,
+                retailerId: productData.retailer_id,
+                currency: productData.currency,
+                price: Number(productData.price),
+                url: productData.url,
+                thumbnailMedia: content.thumbnailMedia,
+            };
         }
 
         if (internalOptions.sendMediaAsSticker && internalOptions.attachment) {

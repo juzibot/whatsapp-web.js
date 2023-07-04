@@ -86,7 +86,7 @@ class Chat extends Base {
 
     /**
      * Send a message to this chat
-     * @param {string|MessageMedia|Location|UrlLink} content
+     * @param {string|MessageMedia|Location|UrlLink|ProductMessage} content
      * @param {MessageSendOptions} [options] 
      * @returns {Promise<Message>} Message that was just sent
      */

@@ -1,4 +1,4 @@
-const { Client, Location, List, Buttons, LocalAuth, UrlLink, MessageMedia } = require('./index');
+const { Client, Location, List, Buttons, LocalAuth, UrlLink, MessageMedia, ProductMessage } = require('./index');
 
 const client = new Client({
     authStrategy: new LocalAuth(),
@@ -29,7 +29,7 @@ client.on('auth_failure', msg => {
     console.error('AUTHENTICATION FAILURE', msg);
 });
 
-client.on('ready', () => {
+client.on('ready', async () => {
     console.log('READY');
 });
 
@@ -226,7 +226,14 @@ client.on('message', async msg => {
         const contact = await client.getContactById('14692648170@c.us');
         client.sendMessage(msg.from, contact);
     } else if (msg.body === '!product') {
-        client.sendMessage(msg.from, 'https://liquidomarket.myshopify.com/products/fitbit-versa-3-health-fitness-smartwatch-black');
+        client.sendMessage(msg.from, {
+            sb: true,
+            title: 'title',
+            description: 'description',
+            businessOwnerJid: '14692648170@s.whatsapp.net',
+            productId: '9931928273499772',
+            thumnail: await MessageMedia.fromUrl('https://www.baidu.com/img/PCtm_d9c8750bed0b3c7d089fa7d55720d6cf.png')
+        });
     } else if (msg.body === '!store') {
         client.sendMessage(msg.from, 'https://wa.me/c/14692648170');
     } else if (msg.body === '!contact') {
