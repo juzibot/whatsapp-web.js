@@ -172,7 +172,7 @@ exports.LoadUtils = () => {
                         `N:;${contact.verifiedName};;;\n` +
                         `FN:${contact.verifiedName}\n` +
                         `X-WA-BIZ-NAME:${contact.verifiedName}\n` +
-                        contact.businessProfile.description ? `X-WA-BIZ-DESCRIPTION:${contact.businessProfile.description}\n` : '' +
+                        (contact.businessProfile.description ? `X-WA-BIZ-DESCRIPTION:${contact.businessProfile.description}\n` : '') +
                         `ORG:${contact.verifiedName};\n` +
                         `TEL;type=CELL;type=VOICE;waid=${contact.id.user}:${window.Store.NumberInfo.formatPhone(contact.id.user)}\n` +
                         'END:VCARD';
@@ -296,6 +296,40 @@ exports.LoadUtils = () => {
             };
         }
 
+        let productOptions = {};
+        if(options.productMessage) {
+            const fileData = await window.WWebJS.processMediaData(options.productMessage.thumbnailMedia, {
+                forceVoice: false,
+                forceDocument: false,
+                forceGif: false
+            });
+            productOptions = {
+                type: 'product',
+                title: options.productMessage.title,
+                description: options.productMessage.description,
+                businessOwnerJid: options.productMessage.businessOwnerJid,
+                productId: options.productMessage.productId,
+                retailerId: options.productMessage.retailerId,
+                url: options.productMessage.url,
+                currencyCode: options.productMessage.currency,
+                priceAmount1000: options.productMessage.price,
+                body: fileData.__x_preview,
+                filehash: fileData.__x_filehash,
+                encFilehash: fileData.__x_encFilehash,
+                size: fileData.__x_size,
+                mediaKey: fileData.__x_mediaKey,
+                mediaKeyTimestamp: fileData.__x_mediaKeyTimestamp,
+                width: fileData.__x_fullWidth,
+                height: fileData.__x_fullHeight,
+                mimetype: fileData.__x_mediaBlob._blob.type,
+                isViewOnce: false,
+                staticUrl: '',
+                deprecatedMms3Url: fileData.deprecatedMms3Url,
+                directPath: fileData.__x_directPath,
+                productImageCount: 1,
+            };
+        }
+
         const meUser = window.Store.User.getMaybeMeUser();
         const isMD = window.Store.MDBackend;
         const newId = await window.Store.MsgKey.newId();
@@ -334,6 +368,7 @@ exports.LoadUtils = () => {
             ...buttonOptions,
             ...listOptions,
             ...urlLinkOptions,
+            ...productOptions,
             ...extraOptions
         };
 

@@ -786,6 +786,8 @@ declare namespace WAWebJS {
         location: Location,
         /** UrlLink information contained in the message, if the message is type "url" */
         urlLink: UrlLink,
+        /** ProductMessage information contained in the message, if the message is type "product" */
+        productMessage: ProductMessage,
         /** List of vCards contained in the message */
         vCards: string[],
         /** Invite v4 info */
@@ -910,6 +912,16 @@ declare namespace WAWebJS {
         constructor(url: string, title: string, description: string, thumbnailMedia: MessageMedia)
     }
 
+    export class ProductMessage {
+        businessOwnerJid: string
+        productId: string
+        title?: string | null
+        description?: string | null
+        thumbnailMedia: MessageMedia
+
+        constructor(businessOwnerJid, productId, title, description, thumbnailMedia)
+    }
+
     export interface Label {
         /** Label name */
         name: string,
@@ -999,7 +1011,7 @@ declare namespace WAWebJS {
         static fromUrl: (url: string, options?: MediaFromURLOptions) => Promise<MessageMedia>
     }
 
-    export type MessageContent = string | MessageMedia | Location | Contact | Contact[] | List | Buttons | UrlLink
+    export type MessageContent = string | MessageMedia | Location | Contact | Contact[] | List | Buttons | UrlLink | ProductMessage
 
     /**
      * Represents a Contact on WhatsApp

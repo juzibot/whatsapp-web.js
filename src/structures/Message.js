@@ -4,6 +4,7 @@ const Base = require('./Base');
 const MessageMedia = require('./MessageMedia');
 const Location = require('./Location');
 const UrlLink = require('./UrlLink');
+const ProductMessage = require('./ProductMessage');
 const Order = require('./Order');
 const Payment = require('./Payment');
 const Reaction = require('./Reaction');
@@ -159,6 +160,12 @@ class Message extends Base {
          * @type {UrlLink}
          */
         this.urlLink = data.type === MessageTypes.TEXT && data.subtype === MessageSubtypes.URL_LINK ? new UrlLink(data.body, data.title, data.description, new MessageMedia('image/jpg', data.thumbnail, 'thumbnail.jpg', 0)) : undefined;
+
+        /**
+         * ProductMessage information contained in the message, if the message is type "product"
+         * @type {ProductMessage}
+         */
+        this.productMessage = data.type === MessageTypes.PRODUCT ? new ProductMessage(data.businessOwnerJid, data.productId, data.title, data.description) : undefined;
 
         /**
          * List of vCards contained in the message.
