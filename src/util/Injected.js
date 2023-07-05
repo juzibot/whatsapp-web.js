@@ -172,7 +172,7 @@ exports.LoadUtils = () => {
                         `N:;${contact.verifiedName};;;\n` +
                         `FN:${contact.verifiedName}\n` +
                         `X-WA-BIZ-NAME:${contact.verifiedName}\n` +
-                        contact.businessProfile.description ? `X-WA-BIZ-DESCRIPTION:${contact.businessProfile.description}\n` : '' +
+                        (contact.businessProfile.description ? `X-WA-BIZ-DESCRIPTION:${contact.businessProfile.description}\n` : '') +
                         `ORG:${contact.verifiedName};\n` +
                         `TEL;type=CELL;type=VOICE;waid=${contact.id.user}:${window.Store.NumberInfo.formatPhone(contact.id.user)}\n` +
                         'END:VCARD';
