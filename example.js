@@ -226,14 +226,13 @@ client.on('message', async msg => {
         const contact = await client.getContactById('14692648170@c.us');
         client.sendMessage(msg.from, contact);
     } else if (msg.body === '!product') {
-        client.sendMessage(msg.from, {
-            sb: true,
-            title: 'title',
-            description: 'description',
-            businessOwnerJid: '14692648170@s.whatsapp.net',
-            productId: '9931928273499772',
-            thumnail: await MessageMedia.fromUrl('https://www.baidu.com/img/PCtm_d9c8750bed0b3c7d089fa7d55720d6cf.png')
-        });
+        client.sendMessage(msg.from, new ProductMessage(
+            '14692648170@s.whatsapp.net',
+            '9931928273499772',
+            'title',
+            'description',
+            await MessageMedia.fromUrl('https://x.boardgamearena.net/data/themereleases/current/games/arknova/230622-0954/img/animals/A523_DomesticRabbit.jpg'),
+        ));
     } else if (msg.body === '!store') {
         client.sendMessage(msg.from, 'https://wa.me/c/14692648170');
     } else if (msg.body === '!contact') {

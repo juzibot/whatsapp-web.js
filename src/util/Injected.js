@@ -321,6 +321,12 @@ exports.LoadUtils = () => {
                 mediaKeyTimestamp: fileData.__x_mediaKeyTimestamp,
                 width: fileData.__x_fullWidth,
                 height: fileData.__x_fullHeight,
+                mimetype: fileData.__x_mediaBlob._blob.type,
+                isViewOnce: false,
+                staticUrl: '',
+                deprecatedMms3Url: fileData.deprecatedMms3Url,
+                directPath: fileData.__x_directPath,
+                productImageCount: 1,
             };
         }
 
