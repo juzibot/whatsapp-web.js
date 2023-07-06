@@ -909,7 +909,7 @@ declare namespace WAWebJS {
         description?: string | null
         thumbnailData?: string | null
 
-        constructor(url: string, title: string, description: string, thumbnailMedia: MessageMedia)
+        constructor(url: string, title?: string, description?: string, thumbnailMedia?: MessageMedia)
     }
 
     export class ProductMessage {
@@ -919,7 +919,7 @@ declare namespace WAWebJS {
         description?: string | null
         thumbnailMedia: MessageMedia
 
-        constructor(businessOwnerJid, productId, title, description, thumbnailMedia)
+        constructor(businessOwnerJid: string, productId: string, title?: string, description?: string, thumbnailMedia?: MessageMedia)
     }
 
     export interface Label {
