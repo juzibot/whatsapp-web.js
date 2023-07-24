@@ -1208,7 +1208,11 @@ class Client extends EventEmitter {
         return await this.pupPage.evaluate(async number => {
             const wid = window.Store.WidFactory.createWid(number);
             const result = await window.Store.QueryExist(wid);
-            if (!result || result.wid === undefined) return null;
+            /**
+             * The number of the result may be different with the input number.
+             * See: https://github.com/juzibot/whatsapp-web.js/issues/23
+             */
+            if (!result || result.wid === undefined || result.wid._serialized !== number) return null;
             return result.wid;
         }, number);
     }
