@@ -20,6 +20,7 @@ module.exports = {
     Location: require('./src/structures/Location'),
     UrlLink: require('./src/structures/UrlLink'),
     ProductMessage: require('./src/structures/ProductMessage'),
+    Poll: require('./src/structures/Poll'),
     ProductMetadata: require('./src/structures/ProductMetadata'),
     List: require('./src/structures/List'),
     Buttons: require('./src/structures/Buttons'),
