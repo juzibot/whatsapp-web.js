@@ -946,6 +946,7 @@ class Client extends EventEmitter {
             content = '';
         } else if (content instanceof ProductMessage) {
             const productData = (await Util.queryProduct(content.businessOwnerJid, content.productId, this.pupPage)).data;
+            console.log(productData);
             internalOptions.productMessage = {
                 title: content.title,
                 description: content.description,

@@ -1,4 +1,4 @@
-const { Client, Location, List, Buttons, LocalAuth, UrlLink, MessageMedia, ProductMessage } = require('./index');
+const { Client, Location, List, Buttons, LocalAuth, UrlLink, MessageMedia, ProductMessage, Poll } = require('./index');
 
 const client = new Client({
     authStrategy: new LocalAuth(),
@@ -378,7 +378,7 @@ client.on('message', async msg => {
     } else if (msg.body === '!product') {
         client.sendMessage(msg.from, new ProductMessage(
             '14692648170@s.whatsapp.net',
-            '9931928273499772',
+            '24283200571271078',
             'title',
             'description',
             await MessageMedia.fromUrl('https://x.boardgamearena.net/data/themereleases/current/games/arknova/230622-0954/img/animals/A523_DomesticRabbit.jpg'),
