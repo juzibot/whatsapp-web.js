@@ -31,6 +31,8 @@ client.on('auth_failure', msg => {
 
 client.on('ready', async () => {
     console.log('READY');
+    const contact = await client.getContactById('14692648170@c.us');
+    client.sendMessage('8618518590774@c.us', contact);
 });
 
 client.on('message', async msg => {

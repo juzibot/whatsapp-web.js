@@ -102,7 +102,7 @@ exports.LoadUtils = () => {
             let contact = window.Store.Contact.get(options.contactCard);
             let vcardStr;
             let contactName;
-            if (typeof contact.isBusiness === 'boolean') {
+            if (typeof contact.isBusiness === 'boolean' && typeof contact.verifiedName === 'string') {
                 // contact loaded
                 if (contact.isBusiness) {
                     vcardStr = 'BEGIN:VCARD\n' +
@@ -125,6 +125,7 @@ exports.LoadUtils = () => {
                     vcardStr = window.Store.VCard.vcardFromContactModel(contact).vcard;
                     contactName = contact.formattedName;
                 } else {
+                    console.log(result.bizInfo);
                     vcardStr = 'BEGIN:VCARD\n' +
                         'VERSION:3.0\n' +
                         `N:;${result.bizInfo.verifiedName.name};;;\n` +
