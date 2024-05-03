@@ -19,7 +19,7 @@ const ChatFactory = require('./factories/ChatFactory');
 const ContactFactory = require('./factories/ContactFactory');
 const WebCacheFactory = require('./webCache/WebCacheFactory');
 const { ClientInfo, Message, MessageMedia, Contact, Location, Poll, PollVote, GroupNotification, Label, Call, Buttons, List, Reaction, UrlLink, ProductMessage } = require('./structures');
-const LegacySessionAuth = require('./authStrategies/LegacySessionAuth');
+// const LegacySessionAuth = require('./authStrategies/LegacySessionAuth');
 const NoAuth = require('./authStrategies/NoAuth');
 
 /**
@@ -1288,7 +1288,7 @@ class Client extends EventEmitter {
         const profilePic = await this.pupPage.evaluate(async contactId => {
             try {
                 const chatWid = window.Store.WidFactory.createWid(contactId);
-                return await window.Store.ProfilePic.profilePicFind(chatWid);
+                return await window.Store.ProfilePic.requestProfilePicFromServer(chatWid);
             } catch (err) {
                 if(err.name === 'ServerStatusCodeError') return undefined;
                 throw err;
