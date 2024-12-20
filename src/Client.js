@@ -20,7 +20,7 @@ const { LoadUtils } = require('./util/Injected/Utils');
 const ChatFactory = require('./factories/ChatFactory');
 const ContactFactory = require('./factories/ContactFactory');
 const WebCacheFactory = require('./webCache/WebCacheFactory');
-const { ClientInfo, Message, MessageMedia, Contact, Location, Poll, PollVote, GroupNotification, Label, Call, Buttons, List, Reaction, Broadcast} = require('./structures');
+const { ClientInfo, Message, MessageMedia, Contact, Location, Poll, PollVote, GroupNotification, Label, Call, Buttons, List, Reaction, Broadcast, UrlLink, ProductMessage} = require('./structures');
 const NoAuth = require('./authStrategies/NoAuth');
 const {exposeFunctionIfAbsent} = require('./util/Puppeteer');
 
@@ -628,12 +628,12 @@ class Client extends EventEmitter {
             }
         });
 
-        await page.exposeFunction('onContactNameChange', async (contact, newName, oldName) => {
+        await exposeFunctionIfAbsent(this.pupPage, 'onContactNameChange', async (contact, newName, oldName) => {
             const whatsappContact = await this.getContactById(contact.id);
             this.emit(Events.CONTACT_NAME_CHANGE, whatsappContact, newName, oldName);
         });
 
-        await page.exposeFunction('onRemoveChatEvent', async (chat) => {
+        await exposeFunctionIfAbsent(this.pupPage, 'onRemoveChatEvent', async (chat) => {
             const _chat = await this.getChatById(chat.id);
 
             /**
