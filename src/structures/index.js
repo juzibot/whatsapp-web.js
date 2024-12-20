@@ -22,5 +22,6 @@ module.exports = {
     Payment: require('./Payment'),
     Reaction: require('./Reaction'),
     Poll: require('./Poll'),
-    PollVote: require('./PollVote')
+    PollVote: require('./PollVote'),
+    Broadcast: require('./Broadcast')
 };

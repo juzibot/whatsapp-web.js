@@ -5,19 +5,30 @@ const client = new Client({
     // proxyAuthentication: { username: 'username', password: 'password' },
     puppeteer: { 
         // args: ['--proxy-server=proxy-server-that-requires-authentication.example.com'],
-        headless: false
-    }, 
+        headless: false,
+    }
 });
 
+// client initialize does not finish at ready now.
 client.initialize();
 
 client.on('loading_screen', (percent, message) => {
     console.log('LOADING SCREEN', percent, message);
 });
 
-client.on('qr', (qr) => {
+// Pairing code only needs to be requested once
+let pairingCodeRequested = false;
+client.on('qr', async (qr) => {
     // NOTE: This event will not be fired if a session is specified.
     console.log('QR RECEIVED', qr);
+
+    // paiuting code example
+    const pairingCodeEnabled = false;
+    if (pairingCodeEnabled && !pairingCodeRequested) {
+        const pairingCode = await client.requestPairingCode('96170100100'); // enter the target phone number
+        console.log('Pairing code enabled, code: '+ pairingCode);
+        pairingCodeRequested = true;
+    }
 });
 
 client.on('authenticated', () => {
@@ -31,8 +42,16 @@ client.on('auth_failure', msg => {
 
 client.on('ready', async () => {
     console.log('READY');
-    const contact = await client.getContactById('14692648170@c.us');
-    client.sendMessage('8618518590774@c.us', contact);
+    const debugWWebVersion = await client.getWWebVersion();
+    console.log(`WWebVersion = ${debugWWebVersion}`);
+
+    client.pupPage.on('pageerror', function(err) {
+        console.log('Page error: ' + err.toString());
+    });
+    client.pupPage.on('error', function(err) {
+        console.log('Page error: ' + err.toString());
+    });
+    
 });
 
 client.on('message', async msg => {
@@ -566,6 +585,10 @@ client.on('group_membership_request', async (notification) => {
     /** You can approve or reject the newly appeared membership request: */
     await client.approveGroupMembershipRequestss(notification.chatId, notification.author);
     await client.rejectGroupMembershipRequests(notification.chatId, notification.author);
+});
+
+client.on('message_reaction', async (reaction) => {
+    console.log('REACTION RECEIVED', reaction);
 });
 
 client.on('vote_update', (vote) => {
