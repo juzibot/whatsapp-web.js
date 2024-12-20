@@ -169,17 +169,19 @@ exports.ExposeStore = () => {
         const [file] = args;
         let src;
         let audio;
-        return new Promise((resolve) => {
+        return new Promise((resolve, reject) => {
             audio = document.createElement('audio');
             audio.addEventListener('loadeddata', resolve);
             audio.addEventListener('error', (e) => {{
-                console.error(e);
-                resolve(5);
+                reject(e);
             }});
             src = URL.createObjectURL(file);
             audio.src = src;
         }).then(() => {
             return ~~audio.seekable.end(0);
+        }).catch((e) => {
+            console.error(e);
+            return 5;
         }).finally(() => {
             src && URL.revokeObjectURL(src);
         });
