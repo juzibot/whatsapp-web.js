@@ -165,4 +165,23 @@ exports.ExposeStore = () => {
 
     window.injectToFunction({ module: 'WAWebE2EProtoUtils', function: 'typeAttributeFromProtobuf' }, (func, ...args) => { const [proto] = args; return proto.locationMessage || proto.groupInviteMessage ? 'text' : func(...args); });
 
+    window.injectToFunction({ module: 'WAWebFileUtils', function: 'getAudioDuration'}, (func, ...args) => {
+        const [file] = args;
+        let src;
+        let audio;
+        return new Promise((resolve) => {
+            audio = document.createElement('audio');
+            audio.addEventListener('loadeddata', resolve);
+            audio.addEventListener('error', (e) => {{
+                console.error(e);
+                resolve(5);
+            }});
+            src = URL.createObjectURL(file);
+            audio.src = src;
+        }).then(() => {
+            return ~~audio.seekable.end(0);
+        }).finally(() => {
+            src && URL.revokeObjectURL(src);
+        });
+    });
 };
