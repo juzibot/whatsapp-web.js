@@ -109,6 +109,9 @@ class Client extends EventEmitter {
             await this.pupPage.evaluate(ExposeLegacyAuthStore, moduleRaid.toString());
         }
 
+        // bridge browser log
+        this.page.on('console', msg => console.log('PUPPETEER PAGE LOG:', msg.text()));
+
         const needAuthentication = await this.pupPage.evaluate(async () => {
             let state = window.AuthStore.AppState.state;
 
