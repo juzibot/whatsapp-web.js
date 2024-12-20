@@ -110,7 +110,7 @@ class Client extends EventEmitter {
         }
 
         // bridge browser log
-        this.page.on('console', msg => console.log('PUPPETEER PAGE LOG:', msg.text()));
+        this.pupPage.on('console', msg => console.log('PUPPETEER PAGE LOG:', msg.text()));
 
         const needAuthentication = await this.pupPage.evaluate(async () => {
             let state = window.AuthStore.AppState.state;
