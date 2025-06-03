@@ -393,6 +393,30 @@ client.on('message', async msg => {
     } else if (msg.body === '!removelabels') {
         const chat = await msg.getChat();
         await chat.changeLabels([]);
+    } else if (msg.body === '!businesscontact') {
+        const contact = await client.getContactById('14692648170@c.us');
+        client.sendMessage(msg.from, contact);
+    } else if (msg.body === '!product') {
+        client.sendMessage(msg.from, new ProductMessage(
+            '14692648170@s.whatsapp.net',
+            '24283200571271078',
+            'title',
+            'description',
+            await MessageMedia.fromUrl('https://x.boardgamearena.net/data/themereleases/current/games/arknova/230622-0954/img/animals/A523_DomesticRabbit.jpg'),
+        ));
+    } else if (msg.body === '!store') {
+        client.sendMessage(msg.from, 'https://wa.me/c/14692648170');
+    } else if (msg.body === '!contact') {
+        const contact = await client.getContactById('8613812345678@c.us');
+        client.sendMessage(msg.from, contact);
+    } else if (msg.body === '!link') {
+        const urlLink = new UrlLink(
+            'https://www.baidu.com',
+            '百度',
+            '百度一下，你也不知道',
+            await MessageMedia.fromUrl('https://www.baidu.com/img/PCtm_d9c8750bed0b3c7d089fa7d55720d6cf.png')
+        );
+        client.sendMessage(msg.from, urlLink);
     } else if (msg.body === '!approverequest') {
         /**
          * Presented an example for membership request approvals, the same examples are for the request rejections.
