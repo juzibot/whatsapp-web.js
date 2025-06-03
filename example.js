@@ -393,30 +393,117 @@ client.on('message', async msg => {
     } else if (msg.body === '!removelabels') {
         const chat = await msg.getChat();
         await chat.changeLabels([]);
-    } else if (msg.body === '!businesscontact') {
-        const contact = await client.getContactById('14692648170@c.us');
-        client.sendMessage(msg.from, contact);
-    } else if (msg.body === '!product') {
-        client.sendMessage(msg.from, new ProductMessage(
-            '14692648170@s.whatsapp.net',
-            '24283200571271078',
-            'title',
-            'description',
-            await MessageMedia.fromUrl('https://x.boardgamearena.net/data/themereleases/current/games/arknova/230622-0954/img/animals/A523_DomesticRabbit.jpg'),
-        ));
-    } else if (msg.body === '!store') {
-        client.sendMessage(msg.from, 'https://wa.me/c/14692648170');
-    } else if (msg.body === '!contact') {
-        const contact = await client.getContactById('8613812345678@c.us');
-        client.sendMessage(msg.from, contact);
-    } else if (msg.body === '!link') {
-        const urlLink = new UrlLink(
-            'https://www.baidu.com',
-            '百度',
-            '百度一下，你也不知道',
-            await MessageMedia.fromUrl('https://www.baidu.com/img/PCtm_d9c8750bed0b3c7d089fa7d55720d6cf.png')
-        );
-        client.sendMessage(msg.from, urlLink);
+    } else if (msg.body === '!approverequest') {
+        /**
+         * Presented an example for membership request approvals, the same examples are for the request rejections.
+         * To approve the membership request from a specific user:
+         */
+        await client.approveGroupMembershipRequests(msg.from, { requesterIds: 'number@c.us' });
+        /** The same for execution on group object (no need to provide the group ID): */
+        const group = await msg.getChat();
+        await group.approveGroupMembershipRequests({ requesterIds: 'number@c.us' });
+        /** To approve several membership requests: */
+        const approval = await client.approveGroupMembershipRequests(msg.from, {
+            requesterIds: ['number1@c.us', 'number2@c.us']
+        });
+        /**
+         * The example of the {@link approval} output:
+         * [
+         *   {
+         *     requesterId: 'number1@c.us',
+         *     message: 'Rejected successfully'
+         *   },
+         *   {
+         *     requesterId: 'number2@c.us',
+         *     error: 404,
+         *     message: 'ParticipantRequestNotFoundError'
+         *   }
+         * ]
+         *
+         */
+        console.log(approval);
+        /** To approve all the existing membership requests (simply don't provide any user IDs): */
+        await client.approveGroupMembershipRequests(msg.from);
+        /** To change the sleep value to 300 ms: */
+        await client.approveGroupMembershipRequests(msg.from, {
+            requesterIds: ['number1@c.us', 'number2@c.us'],
+            sleep: 300
+        });
+        /** To change the sleep value to random value between 100 and 300 ms: */
+        await client.approveGroupMembershipRequests(msg.from, {
+            requesterIds: ['number1@c.us', 'number2@c.us'],
+            sleep: [100, 300]
+        });
+        /** To explicitly disable the sleep: */
+        await client.approveGroupMembershipRequests(msg.from, {
+            requesterIds: ['number1@c.us', 'number2@c.us'],
+            sleep: null
+        });
+    } else if (msg.body === '!pinmsg') {
+        /**
+         * Pins a message in a chat, a method takes a number in seconds for the message to be pinned.
+         * WhatsApp default values for duration to pass to the method are:
+         * 1. 86400 for 24 hours
+         * 2. 604800 for 7 days
+         * 3. 2592000 for 30 days
+         * You can pass your own value:
+         */
+        const result = await msg.pin(60); // Will pin a message for 1 minute
+        console.log(result); // True if the operation completed successfully, false otherwise
+    } else if (msg.body === '!howManyConnections') {
+        /**
+         * Get user device count by ID
+         * Each WaWeb Connection counts as one device, and the phone (if exists) counts as one
+         * So for a non-enterprise user with one WaWeb connection it should return "2"
+         */
+        let deviceCount = await client.getContactDeviceCount(msg.from);
+        await msg.reply(`You have *${deviceCount}* devices connected`);
+    } else if (msg.body === '!syncHistory') {
+        const isSynced = await client.syncHistory(msg.from);
+        // Or through the Chat object:
+        // const chat = await client.getChatById(msg.from);
+        // const isSynced = await chat.syncHistory();
+        
+        await msg.reply(isSynced ? 'Historical chat is syncing..' : 'There is no historical chat to sync.');
+    } else if (msg.body === '!statuses') {
+        const statuses = await client.getBroadcasts();
+        console.log(statuses);
+        const chat = await statuses[0]?.getChat(); // Get user chat of a first status
+        console.log(chat);
+    } else if (msg.body === '!sendMediaHD' && msg.hasQuotedMsg) {
+        const quotedMsg = await msg.getQuotedMessage();
+        if (quotedMsg.hasMedia) {
+            const media = await quotedMsg.downloadMedia();
+            await client.sendMessage(msg.from, media, { sendMediaAsHd: true });
+        }
+    } else if (msg.body === '!parseVCard') {
+        const vCard =
+            'BEGIN:VCARD\n' +
+            'VERSION:3.0\n' +
+            'FN:John Doe\n' +
+            'ORG:Microsoft;\n' +
+            'EMAIL;type=INTERNET:john.doe@gmail.com\n' +
+            'URL:www.johndoe.com\n' +
+            'TEL;type=CELL;type=VOICE;waid=18006427676:+1 (800) 642 7676\n' +
+            'END:VCARD';
+        const vCardExtended =
+            'BEGIN:VCARD\n' +
+            'VERSION:3.0\n' +
+            'FN:John Doe\n' +
+            'ORG:Microsoft;\n' +
+            'item1.TEL:+1 (800) 642 7676\n' +
+            'item1.X-ABLabel:USA Customer Service\n' +
+            'item2.TEL:+55 11 4706 0900\n' +
+            'item2.X-ABLabel:Brazil Customer Service\n' +
+            'PHOTO;BASE64:here you can paste a binary data of a contact photo in Base64 encoding\n' +
+            'END:VCARD';
+        const userId = 'XXXXXXXXXX@c.us';
+        await client.sendMessage(userId, vCard);
+        await client.sendMessage(userId, vCardExtended);
+    } else if (msg.body === '!changeSync') {
+        // NOTE: this action will take effect after you restart the client.
+        const backgroundSync = await client.setBackgroundSync(true);
+        console.log(backgroundSync);
     }
 });
 

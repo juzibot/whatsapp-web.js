@@ -5,6 +5,7 @@ module.exports = {
     ClientInfo: require('./ClientInfo'),
     Contact: require('./Contact'),
     GroupChat: require('./GroupChat'),
+    Channel: require('./Channel'),
     Location: require('./Location'),
     UrlLink: require('./UrlLink'),
     ProductMessage: require('./ProductMessage'),
