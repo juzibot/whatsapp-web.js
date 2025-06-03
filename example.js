@@ -61,6 +61,23 @@ client.on('message', async msg => {
         // Send a new message as a reply to the current one
         msg.reply('pong');
 
+    } else if (msg.body === '!participants') {
+        const chat = await msg.getChat();
+        let reply = '';
+        if (chat.isGroup) {
+            console.log(chat.participants);
+            const participants = chat.participants;
+            for (const participant of participants) {
+                const participantId = participant.id._serialized;
+                const participantContact = await client.getContactById(participantId);
+                console.log(participantContact);
+                reply += `Participant: ${participantContact.name} - ${participantContact.id._serialized}\n`;
+            }
+            msg.reply(reply, undefined, {linkPreview: false});
+        } else {
+            msg.reply('Not a group!');
+        }
+
     } else if (msg.body === '!ping') {
         // Send a new message to the same chat
         client.sendMessage(msg.from, 'pong');
@@ -534,6 +551,7 @@ client.on('message', async msg => {
 client.on('message_create', async (msg) => {
     // Fired on all message creations, including your own
     if (msg.fromMe) {
+        client.emit('message', msg);
         // do stuff here
     }
 
