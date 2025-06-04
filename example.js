@@ -55,7 +55,7 @@ client.on('ready', async () => {
 });
 
 client.on('message', async msg => {
-    console.log('MESSAGE RECEIVED', msg);
+    console.log('MESSAGE RECEIVED', JSON.stringify(msg));
 
     if (msg.body === '!ping reply') {
         // Send a new message as a reply to the current one
@@ -551,7 +551,6 @@ client.on('message', async msg => {
 client.on('message_create', async (msg) => {
     // Fired on all message creations, including your own
     if (msg.fromMe) {
-        client.emit('message', msg);
         // do stuff here
     }
 
@@ -600,6 +599,9 @@ client.on('message_ack', (msg, ack) => {
 
     if (ack == 3) {
         // The message was read
+    }
+    if (ack == 1 && msg.fromMe) {
+        client.emit('message', msg);
     }
 });
 
