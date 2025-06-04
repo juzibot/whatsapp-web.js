@@ -368,7 +368,10 @@ class Client extends EventEmitter {
      * @property {boolean} reinject is this a reinject?
      */
     async attachEventListeners() {
-        await exposeFunctionIfAbsent(this.pupPage, 'onAddMessageEvent', msg => {
+        await exposeFunctionIfAbsent(this.pupPage, 'onAddMessageEvent', async msg => {
+
+            await this.fixMessageLid(msg);
+
             if (msg.type === 'gp2') {
                 const notification = new GroupNotification(this, msg);
                 if (['add', 'invite', 'linked_group_join'].includes(msg.subtype)) {
@@ -435,7 +438,8 @@ class Client extends EventEmitter {
 
         let last_message;
 
-        await exposeFunctionIfAbsent(this.pupPage, 'onChangeMessageTypeEvent', (msg) => {
+        await exposeFunctionIfAbsent(this.pupPage, 'onChangeMessageTypeEvent', async (msg) => {
+            await this.fixMessageLid(msg);
 
             if (msg.type === 'revoked') {
                 const message = new Message(this, msg);
@@ -456,7 +460,8 @@ class Client extends EventEmitter {
 
         });
 
-        await exposeFunctionIfAbsent(this.pupPage, 'onChangeMessageEvent', (msg) => {
+        await exposeFunctionIfAbsent(this.pupPage, 'onChangeMessageEvent', async (msg) => {
+            await this.fixMessageLid(msg);
 
             if (msg.type !== 'revoked') {
                 last_message = msg;
@@ -494,7 +499,8 @@ class Client extends EventEmitter {
             }
         });
 
-        await exposeFunctionIfAbsent(this.pupPage, 'onRemoveMessageEvent', (msg) => {
+        await exposeFunctionIfAbsent(this.pupPage, 'onRemoveMessageEvent', async (msg) => {
+            await this.fixMessageLid(msg);
 
             if (!msg.isNewMsg) return;
 
@@ -509,7 +515,8 @@ class Client extends EventEmitter {
 
         });
 
-        await exposeFunctionIfAbsent(this.pupPage, 'onMessageAckEvent', (msg, ack) => {
+        await exposeFunctionIfAbsent(this.pupPage, 'onMessageAckEvent', async (msg, ack) => {
+            await this.fixMessageLid(msg);
 
             const message = new Message(this, msg);
 
@@ -532,7 +539,8 @@ class Client extends EventEmitter {
             this.emit(Events.UNREAD_COUNT, chat);
         });
 
-        await exposeFunctionIfAbsent(this.pupPage, 'onMessageMediaUploadedEvent', (msg) => {
+        await exposeFunctionIfAbsent(this.pupPage, 'onMessageMediaUploadedEvent', async (msg) => {
+            await this.fixMessageLid(msg);
 
             const message = new Message(this, msg);
 
@@ -660,7 +668,8 @@ class Client extends EventEmitter {
             this.emit(Events.CHAT_ARCHIVED, _chat, currState, prevState);
         });
 
-        await exposeFunctionIfAbsent(this.pupPage, 'onEditMessageEvent', (msg, newBody, prevBody) => {
+        await exposeFunctionIfAbsent(this.pupPage, 'onEditMessageEvent', async (msg, newBody, prevBody) => {
+            await this.fixMessageLid(msg);
                 
             if(msg.type === 'revoked'){
                 return;
@@ -675,7 +684,8 @@ class Client extends EventEmitter {
             this.emit(Events.MESSAGE_EDIT, new Message(this, msg), newBody, prevBody);
         });
             
-        await exposeFunctionIfAbsent(this.pupPage, 'onAddMessageCiphertextEvent', msg => {
+        await exposeFunctionIfAbsent(this.pupPage, 'onAddMessageCiphertextEvent', async (msg) => {
+            await this.fixMessageLid(msg);
                 
             /**
                  * Emitted when messages are edited
@@ -1163,6 +1173,65 @@ class Client extends EventEmitter {
         }, contactId);
 
         return ContactFactory.create(this, contact);
+    }
+
+    async getOriginalContactIdByLid(lid) {
+        let contact = await this.getContactById(lid);
+        return contact?.id._serialized;
+    }
+
+    async fixMessageLid(msg) {
+        const lidHash = {};
+
+        if (msg.id.participant && msg.id.participant.endsWith('@lid')) {
+            const contactId = await this.getOriginalContactIdByLid(msg.id.participant);
+            if (contactId) {
+                lidHash[msg.id.participant] = contactId;
+                msg.id.participant = contactId;
+            }
+        }
+
+        if (msg.from && msg.from.endsWith('@lid')) {
+            if (lidHash[msg.from]) {
+                msg.from = lidHash[msg.from];
+            } else {
+                const contactId = await this.getOriginalContactIdByLid(msg.from);
+                if (contactId) {
+                    lidHash[msg.from] = contactId;
+                    msg.from = contactId;
+                }
+            }
+        }
+
+        if (msg.author && msg.author.endsWith('@lid')) {
+            if (lidHash[msg.author]) {
+                msg.author = lidHash[msg.author];
+            } else {
+                const contactId = await this.getOriginalContactIdByLid(msg.author);
+                if (contactId) {
+                    lidHash[msg.author] = contactId;
+                    msg.author = contactId;
+                }
+            }
+        }
+        
+        if (msg.recipients?.length) {
+            await Promise.all(
+                msg.recipients.map(async (item, index) => {
+                    if (item.endsWith('@lid')) {
+                        if (lidHash[item]) {
+                            msg.recipients[index] = lidHash[item];
+                        } else {
+                            const contactId = await this.getOriginalContactIdByLid(item);
+                            if (contactId) {
+                                lidHash[item] = contactId;
+                                msg.recipients[index] = contactId;
+                            }
+                        }
+                    }
+                })
+            );
+        }
     }
     
     async getMessageById(messageId) {
