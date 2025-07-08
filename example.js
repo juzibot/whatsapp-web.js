@@ -545,6 +545,28 @@ client.on('message', async msg => {
         // NOTE: this action will take effect after you restart the client.
         const backgroundSync = await client.setBackgroundSync(true);
         console.log(backgroundSync);
+    } else if (msg.body === '!sendLink') {
+        const text = `圓圓的午安分享：
+🌹飯後半小時左右，適當地刺激心包經，可以增加心臟供血，有效保護心臟，非常適合老年人
+
+👉專屬第26課中醫養生入口
+
+https://d.05ct.cn/hw0606 
+
+‼️人參補膏活動已開啟！
+數量不多，有需要的趕緊聯系圓圓哦`;
+        console.time('sendLink');
+        client.sendMessage(msg.from, text);
+        console.timeEnd('sendLink');
+    } else if (msg.body === '!listContact') {
+        const contacts = await client.getContacts();
+        console.log(contacts);
+        return contacts.map(contact => contact.id._serialized);
+    } else if (msg.body === '!mention' && (msg.from.endsWith('@g.us') || msg.to.endsWith('@g.us'))) {
+        const group = await msg.getChat();
+        await group.sendMessage('123', {
+            mentions: ['8613811623084@c.us']
+        });
     }
 });
 
@@ -587,6 +609,7 @@ client.on('message_revoke_me', async (msg) => {
 });
 
 client.on('message_ack', (msg, ack) => {
+    // console.log('message_ack', msg, ack);
     /*
         == ACK VALUES ==
         ACK_ERROR: -1
