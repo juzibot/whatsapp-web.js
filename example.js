@@ -6,6 +6,7 @@ const client = new Client({
     puppeteer: { 
         // args: ['--proxy-server=proxy-server-that-requires-authentication.example.com'],
         headless: false,
+        devtools: true,
     }
 });
 
@@ -564,9 +565,16 @@ https://d.05ct.cn/hw0606
         return contacts.map(contact => contact.id._serialized);
     } else if (msg.body === '!mention' && (msg.from.endsWith('@g.us') || msg.to.endsWith('@g.us'))) {
         const group = await msg.getChat();
-        await group.sendMessage('123', {
-            mentions: ['8613811623084@c.us']
+        await group.sendMessage('123 @本人苏菲', {
+            mentions: ['8615130683703@c.us']
         });
+    } else if (msg.body === '!kick') {
+        const group = await msg.getChat();
+        group.removeParticipants(['8615130683703@c.us']);
+    } else if (msg.body === '!add') {
+        const group = await msg.getChat();
+        const result = await group.addParticipants(['8615130683703@c.us']);
+        console.log(result);
     }
 });
 
