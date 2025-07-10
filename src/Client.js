@@ -943,6 +943,12 @@ class Client extends EventEmitter {
                 console.warn('Mentions with an array of Contact are now deprecated. See more at https://github.com/pedroslopez/whatsapp-web.js/pull/2166.');
                 options.mentions = options.mentions.map((a) => a.id._serialized);
             }
+            for (const mentionedParticipant of participants) {
+                const contact = await this.getContactById(mentionedParticipant.id._serialized);
+                if (contact) {
+                    content = content.replaceAll(`@${contact.name}`, `@${mentionedParticipant.lid.user}`).replaceAll(`@${contact.pushname}`, `@${mentionedParticipant.lid.user}`);
+                }
+            }
         }
 
         options.groupMentions && !Array.isArray(options.groupMentions) && (options.groupMentions = [options.groupMentions]);
@@ -1203,7 +1209,6 @@ class Client extends EventEmitter {
         }
 
         let contact = await this.getContactById(lid);
-        console.log('getOriginalContactIdByLid', lid, contact?.id._serialized);
 
         lidHash[lid] = contact?.id._serialized;
 
@@ -1248,11 +1253,14 @@ class Client extends EventEmitter {
         if (msg.mentionedJidList?.length) {
             await Promise.all(
                 msg.mentionedJidList.map(async (item, index) => {
-                    if (item.endsWith('@lid')) {
-                        const contactId = await this.getOriginalContactIdByLid(item);
-                        if (contactId) {
-                            msg.mentionedJidList[index] = contactId;
-                        }
+                    const contact = await this.getContactById(item);
+                    const contactId = contact?.id._serialized;
+                    if (item.endsWith('@lid') && contactId) {
+                        msg.mentionedJidList[index] = contactId;
+                    }
+                    msg.body = msg.body.replaceAll(`@${item.split('@')[0]}`, `@${contact.name || contact.pushname}`);
+                    if (contactId) {
+                        msg.body = msg.body.replaceAll(`@${contactId.split('@')[0]}`, `@${contact.name || contact.pushname}`);
                     }
                 })
             );
