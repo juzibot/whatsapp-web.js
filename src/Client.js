@@ -853,6 +853,7 @@ class Client extends EventEmitter {
         }
         
         await this.authStrategy.logout();
+        this.emit(Events.DISCONNECTED, 'INITIATIVE LOGOUT');
     }
 
     /**
