@@ -565,7 +565,7 @@ https://d.05ct.cn/hw0606
         return contacts.map(contact => contact.id._serialized);
     } else if (msg.body === '!mention' && (msg.from.endsWith('@g.us') || msg.to.endsWith('@g.us'))) {
         const group = await msg.getChat();
-        await group.sendMessage('123 @本人苏菲', {
+        await group.sendMessage('123 @我叫苏菲', {
             mentions: ['8615130683703@c.us']
         });
     } else if (msg.body === '!kick') {
@@ -575,12 +575,15 @@ https://d.05ct.cn/hw0606
         const group = await msg.getChat();
         const result = await group.addParticipants(['8615130683703@c.us']);
         console.log(result);
+    } else if (msg.body === '!logout') {
+        client.logout();
     }
 });
 
 client.on('message_create', async (msg) => {
     // Fired on all message creations, including your own
     if (msg.fromMe) {
+        console.log('MESSAGE_CREATE by me:',msg);
         // do stuff here
     }
 
@@ -668,6 +671,7 @@ client.on('call', async (call) => {
 
 client.on('disconnected', (reason) => {
     console.log('Client was logged out', reason);
+    client.initialize();
 });
 
 client.on('contact_name_change', (contact, newName, oldName) => {
