@@ -949,7 +949,11 @@ class Client extends EventEmitter {
         if (options.mentions) {
             const group = await this.getChatById(chatId);
             const participants = options.mentions.map(mention => {
-                return group.participants.find(participant => participant.id._serialized === mention);
+                const result = group.participants.find(participant => participant.id._serialized === mention);
+                if (!result) {
+                    throw new Error(`participant ${mention} is not in the group`);
+                }
+                return result;
             });
             options.mentions = participants.map(participant => participant.lid._serialized);
             !Array.isArray(options.mentions) && (options.mentions = [options.mentions]);
