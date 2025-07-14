@@ -577,6 +577,20 @@ https://d.05ct.cn/hw0606
         console.log(result);
     } else if (msg.body === '!logout') {
         client.logout();
+    } else if (msg.body === '!save') {
+        const contact = await client.getContactById('8615383510250@c.us');
+        if (contact.isMyContact) {
+            console.log('8615383510250 is my contact');
+            return;
+        }
+        client.saveOrEditAddressbookContact('8615383510250', 'fff存上了', '', true);
+    } else if (msg.body === '!remove') {
+        const contact = await client.getContactById('8615383510250@c.us');
+        if (!contact.isMyContact) {
+            console.log('8615383510250 is my contact');
+            return;
+        }
+        client.deleteAddressbookContact('8615383510250');
     }
 });
 
@@ -671,7 +685,9 @@ client.on('call', async (call) => {
 
 client.on('disconnected', (reason) => {
     console.log('Client was logged out', reason);
-    client.initialize();
+    if (!client.pupPage) {
+        client.initialize();
+    }
 });
 
 client.on('contact_name_change', (contact, newName, oldName) => {
@@ -760,4 +776,19 @@ client.on('message_reaction', async (reaction) => {
 client.on('vote_update', (vote) => {
     /** The vote that was affected: */
     console.log(vote);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('Config', '###########################');
+    console.error('Config', `unhandledRejection: ${reason} ${promise}`);
+    console.error('Config', '###########################');
+    promise.catch(err => {
+        const message = err.message;
+        console.error('Config', `process.on(unhandledRejection) promise.catch(${message})`);
+    });
+});
+process.on('uncaughtException', e => {
+    console.error('Config', '###########################');
+    console.error('Config', `uncaughtException: ${e.stack}`);
+    console.error('Config', '###########################');
 });
