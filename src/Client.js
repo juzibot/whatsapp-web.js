@@ -621,7 +621,7 @@ class Client extends EventEmitter {
             this.emit(Events.INCOMING_CALL, cll);
         });
 
-        await exposeFunctionIfAbsent(this.pupPage, 'onReaction', (reactions) => {
+        await exposeFunctionIfAbsent(this.pupPage, 'onReaction', async (reactions) => {
             for (const reaction of reactions) {
                 /**
                      * Emitted when a reaction is sent, received, updated or removed
@@ -637,7 +637,7 @@ class Client extends EventEmitter {
                      * @param {string} reaction.senderId - Sender id
                      * @param {?number} reaction.ack - Ack
                      */
-
+                await this.fixMessageLid(reaction);
                 this.emit(Events.MESSAGE_REACTION, new Reaction(this, reaction));
             }
         });
@@ -1223,6 +1223,27 @@ class Client extends EventEmitter {
             }
         }
 
+        if (msg.reactionParentKey?.participant && msg.reactionParentKey.participant.endsWith('@lid')) {
+            const contactId = await this.getOriginalContactIdByLid(msg.reactionParentKey.participant);
+            if (contactId) {
+                msg.reactionParentKey.participant = contactId;
+            }
+        }
+
+        if (msg.parentMsgKey?.participant && msg.parentMsgKey.participant.endsWith('@lid')) {
+            const contactId = await this.getOriginalContactIdByLid(msg.parentMsgKey.participant);
+            if (contactId) {
+                msg.parentMsgKey.participant = contactId;
+            }
+        }
+
+        if (msg.msgKey?.participant && msg.msgKey.participant.endsWith('@lid')) {
+            const contactId = await this.getOriginalContactIdByLid(msg.msgKey.participant);
+            if (contactId) {
+                msg.msgKey.participant = contactId;
+            }
+        }
+
         if (msg.from && msg.from.endsWith('@lid')) {
             const contactId = await this.getOriginalContactIdByLid(msg.from);
             if (contactId) {
@@ -1234,6 +1255,13 @@ class Client extends EventEmitter {
             const contactId = await this.getOriginalContactIdByLid(msg.author);
             if (contactId) {
                 msg.author = contactId;
+            }
+        }
+
+        if (msg.senderUserJid && msg.senderUserJid.endsWith('@lid')) {
+            const contactId = await this.getOriginalContactIdByLid(msg.senderUserJid);
+            if (contactId) {
+                msg.senderUserJid = contactId;
             }
         }
         
