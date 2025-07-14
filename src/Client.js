@@ -643,8 +643,22 @@ class Client extends EventEmitter {
         });
 
         await exposeFunctionIfAbsent(this.pupPage, 'onContactNameChange', async (contact, newName, oldName) => {
+            // we only listen to change:name here because there are too many change events which seem changing nothing
+            // there might be 2 events, 1 for @c.us, 1 for @lid, ignore the @lid event
+            if (contact.id.endsWith('@lid')) {
+                return;
+            }
             const whatsappContact = await this.getContactById(contact.id);
+
             this.emit(Events.CONTACT_NAME_CHANGE, whatsappContact, newName, oldName);
+
+            if (newName === null && !whatsappContact.isMyContact) {
+                this.emit(Events.CONTACT_REMOVE, whatsappContact);
+            }
+
+            if (oldName === null && whatsappContact.isMyContact) {
+                this.emit(Events.CONTACT_ADD, whatsappContact);
+            }
         });
 
         await exposeFunctionIfAbsent(this.pupPage, 'onRemoveChatEvent', async (chat) => {
