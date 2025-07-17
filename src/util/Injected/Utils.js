@@ -679,6 +679,9 @@ exports.LoadUtils = () => {
                 result.id = item.contact?.phoneNumber || result.lid;
                 return result;
             });
+            model.groupMetadata.lidOwner = chat.groupMetadata.owner;
+            const owner = await window.WWebJS.getContact(chat.groupMetadata.owner._serialized);
+            model.groupMetadata.owner = owner.id;
             model.isReadOnly = chat.groupMetadata.announce;
         }
 
