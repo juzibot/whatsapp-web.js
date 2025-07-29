@@ -207,6 +207,7 @@ client.on('message', async msg => {
         console.log(result);
     } else if (msg.body === '!groupinfo') {
         let chat = await msg.getChat();
+        console.log(chat);
         if (chat.isGroup) {
             msg.reply(`
                 *Group Details*
@@ -591,6 +592,23 @@ https://d.05ct.cn/hw0606
             return;
         }
         client.deleteAddressbookContact('8615383510250');
+    } else if (msg.body === '!sendAudio') {
+        const audio = await MessageMedia.fromUrl('https://s3.cn-northwest-1.amazonaws.com.cn/xiaoju-new-resource-test/permanent/material/646d818baf71f175124fabde/b0df2ab4-099f-4005-979d-e86da4dba4bb/14%E7%A7%92.mp3');
+        client.sendMessage(msg.from, audio, {
+            sendAudioAsVoice: true
+        });
+    } else if (msg.body === '!sendVideo') {
+        const video = await MessageMedia.fromUrl('https://s3.cn-northwest-1.amazonaws.com.cn/xiaoju-resource-pathboost/permanent/material/5d22ddf650ae58496536464e/c4f6b4d1-4bcb-4c33-a28b-de5d64942d3e/%E5%95%8A%E6%98%AF%20%3D-sada~!31%23%24.mp4');
+        await client.sendMessage(msg.from, 'gif');
+        await client.sendMessage(msg.from, video, {
+            sendVideoAsGif: true
+        });
+        await client.sendMessage(msg.from, 'video');
+        await client.sendMessage(msg.from, video, {
+        });
+    } else if (msg.body === '!createRoom') {
+        console.log('create room');
+        await client.createGroup('hello', ['8615383510250@c.us']);
     }
 });
 
