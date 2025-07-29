@@ -1768,6 +1768,7 @@ class Client extends EventEmitter {
             }
 
             parentGroupId && (parentGroupWid = window.Store.WidFactory.createWid(parentGroupId));
+            participantWids.map(item => item.lid = item);
 
             try {
                 createGroupResult = await window.Store.GroupUtils.createGroup(
