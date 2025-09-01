@@ -22,6 +22,7 @@ module.exports = {
     UrlLink: require('./src/structures/UrlLink'),
     ProductMessage: require('./src/structures/ProductMessage'),
     Poll: require('./src/structures/Poll'),
+    ScheduledEvent: require('./src/structures/ScheduledEvent'),
     ProductMetadata: require('./src/structures/ProductMetadata'),
     List: require('./src/structures/List'),
     Buttons: require('./src/structures/Buttons'),

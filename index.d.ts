@@ -102,6 +102,9 @@ declare namespace WAWebJS {
         /** Get message by ID */
         getMessageById(messageId: string): Promise<Message>
 
+        /** Gets instances of all pinned messages in a chat */
+        getPinnedMessages(chatId: string): Promise<[Message]|[]>
+
         /** Get all current contact instances */
         getContacts(): Promise<Contact[]>
         
@@ -163,10 +166,11 @@ declare namespace WAWebJS {
         /**
          * Request authentication via pairing code instead of QR code
          * @param phoneNumber - Phone number in international, symbol-free format (e.g. 12025550108 for US, 551155501234 for Brazil)
-         * @param showNotification - Show notification to pair on phone number
+         * @param showNotification - Show notification to pair on phone number. Defaults to `true`
+         * @param intervalMs - The interval in milliseconds on how frequent to generate pairing code (WhatsApp default to 3 minutes). Defaults to `180000`
          * @returns {Promise<string>} - Returns a pairing code in format "ABCDEFGH"
          */
-        requestPairingCode(phoneNumber: string, showNotification?: boolean): Promise<string>
+        requestPairingCode(phoneNumber: string, showNotification?: boolean, intervalMs?: number): Promise<string>
 
         /** Force reset of connection state for the client */
         resetState(): Promise<void>
@@ -248,6 +252,9 @@ declare namespace WAWebJS {
 
         /** Deletes the contact from user's addressbook */
         deleteAddressbookContact(honeNumber: string): Promise<void>
+
+        /** Get Contact lid and phone */
+        getContactLidAndPhone(userIds: string[]): Promise<{ lid: string; pn: string }[]>
         
         /** Changes and returns the archive state of the Chat */
         unarchiveChat(chatId: string): Promise<boolean>
@@ -260,6 +267,16 @@ declare namespace WAWebJS {
 
         /** Deletes the current user's profile picture */
         deleteProfilePicture(): Promise<boolean>
+
+        /** Generates a WhatsApp call link (video call or voice call) */
+        createCallLink(startTime: Date, callType: string): Promise<string>
+
+        /**
+         * Sends a response to the scheduled event message, indicating whether a user is going to attend the event or not
+         * @param response The response code to the event message. Valid values are: `0` for NONE response (removes a previous response) | `1` for GOING | `2` for NOT GOING | `3` for MAYBE going
+         * @param eventMessageId The event message ID
+         */
+        sendResponseToScheduledEvent(response: number, eventMessageId: string): Promise<boolean>
 
         /** Gets an array of membership requests */
         getGroupMembershipRequests(groupId: string): Promise<Array<GroupMembershipRequest>>
@@ -373,7 +390,7 @@ declare namespace WAWebJS {
             ack: MessageAck
         ) => void): this
         
-        /** Emitted when an ack event occurrs on message type */
+        /** Emitted when an edit event occurrs on message type */
         on(event: 'message_edit', listener: (
             /** The message that was affected */
             message: Message,
@@ -448,6 +465,13 @@ declare namespace WAWebJS {
             /** qr code string
              *  @example ```1@9Q8tWf6bnezr8uVGwVCluyRuBOJ3tIglimzI5dHB0vQW2m4DQ0GMlCGf,f1/vGcW4Z3vBa1eDNl3tOjWqLL5DpYTI84DMVkYnQE8=,ZL7YnK2qdPN8vKo2ESxhOQ==``` */
             qr: string
+        ) => void): this
+
+        /** Emitted when the phone number pairing code is received */
+        on(event: 'code', listener: (
+            /** pairing code string
+             *  @example `8W2WZ3TS` */
+            code: string
         ) => void): this
 
         /** Emitted when a call is received */
@@ -549,8 +573,27 @@ declare namespace WAWebJS {
         /** Ffmpeg path to use when formatting videos to webp while sending stickers 
          * @default 'ffmpeg' */
         ffmpegPath?: string,
+        /** Sets bypassing of page's Content-Security-Policy 
+         * @default false */
+        bypassCSP?: boolean,
+        /** Sets the device name of a current linked device., i.e.: 'TEST' */
+        deviceName?: string,
+        /**
+         * Sets the browser name of a current linked device, i.e.: 'Firefox'.
+         * Valid value are: 'Chrome' | 'Firefox' | 'IE' | 'Opera' | 'Safari' | 'Edge'
+         */
+        browserName?: string,
         /** Object with proxy autentication requirements @default: undefined */
         proxyAuthentication?: {username: string, password: string} | undefined
+        /** Phone number pairing configuration. Refer the requestPairingCode function of Client. 
+         * @default
+         * {
+         *   phoneNumber: "",
+         *   showNotification: true,
+         *   intervalMs: 180000,
+         * }
+        */
+        pairWithPhoneNumber?: {phoneNumber: string, showNotification?: boolean, intervalMs?: number}
     }
 
     export interface LocalWebCacheOptions {
@@ -689,6 +732,22 @@ declare namespace WAWebJS {
          * @default ''
          */
         comment?: string
+        /** If true, only admins can add members to the group (false by default)
+         * @default false
+         */
+        memberAddMode?: boolean,
+        /** If true, group admins will be required to approve anyone who wishes to join the group (false by default)
+         * @default false
+         */
+        membershipApprovalMode?: boolean,
+        /** If true, only admins can change group group info (true by default)
+         * @default true
+         */
+        isRestrict?: boolean,
+        /** If true, only admins can send messages (false by default)
+         * @default false
+         */
+        isAnnounce?: boolean,
     }
 
     /** An object that handles the result for createGroup method */
@@ -878,6 +937,7 @@ declare namespace WAWebJS {
         REACTION = 'reaction',
         TEMPLATE_BUTTON_REPLY = 'template_button_reply',
         POLL_CREATION = 'poll_creation',
+        SCHEDULED_EVENT_CREATION = 'scheduled_event_creation',
     }
 
     /** Message subtypes */
@@ -1043,6 +1103,11 @@ declare namespace WAWebJS {
         latestEditSenderTimestampMs?: number,
         /** Last edit message author */
         latestEditMsgKey?: MessageId,
+        /**
+         * Protocol message key.
+         * Can be used to retrieve the ID of an original message that was revoked.
+         */
+        protocolMessageKey?: MessageId,
         /** Message buttons */
         dynamicReplyButtons?: object,
         /** Selected button ID */
@@ -1056,6 +1121,24 @@ declare namespace WAWebJS {
         pollOptions: string[],
         /** False for a single choice poll, true for a multiple choice poll */
         allowMultipleAnswers: boolean,
+        /** The start time of the event in timestamp (10 digits) */
+        eventStartTime: number,
+        /** The end time of the event in timestamp (10 digits) */
+        eventEndTime?: number,
+        /** The event description */
+        eventDescription?: string,
+        /** The location of the event */
+        eventLocation?: {
+            degreesLatitude: number;
+            degreesLongitude: number;
+            name: string;
+        },
+        /** WhatsApp call link (video call or voice call) */
+        eventJoinLink?: string,
+        /** Indicates if an event should be sent as an already canceled */
+        isEventCaneled: boolean,
+        /** The custom message secret, can be used as an event ID */
+        messageSecret?: Array<number>,
         /* 
         * Reloads this Message object's data in-place with the latest values from WhatsApp Web. 
         * Note that the Message must still be in the web app cache for this to work, otherwise will return null.
@@ -1113,6 +1196,11 @@ declare namespace WAWebJS {
         getReactions: () => Promise<ReactionList[]>,
         /** Edits the current message */
         edit: (content: MessageContent, options?: MessageEditOptions) => Promise<Message | null>,
+        /**
+         * Edits the current ScheduledEvent message.
+         * Once the event is canceled, it can not be edited.
+         */
+        editScheduledEvent: (editedEventObject: Event) => Promise<Message | null>,
     }
 
     /** ID that represents a message */
@@ -1185,6 +1273,44 @@ declare namespace WAWebJS {
         thumbnailMedia: MessageMedia
 
         constructor(businessOwnerJid: string, productId: string, title?: string, description?: string, thumbnailMedia?: MessageMedia)
+    }
+
+    /** ScheduledEvent send options */
+    export interface ScheduledEventSendOptions {
+        /** The scheduled event description */
+        description?: string,
+        /** The end time of the event */
+        endTime?: Date,
+        /** The location of the event */
+        location?: string,
+        /** The type of a WhatsApp call link to generate, valid values are: `video` | `voice` */
+        callType?: string,
+        /**
+         * Indicates if a scheduled event should be sent as an already canceled
+         * @default false
+         */
+        isEventCanceled?: boolean
+        /**
+         * The custom message secret, can be used as an event ID
+         * @note It has to be a unique vector with a length of 32
+         */
+        messageSecret: Array<number>|undefined
+    }
+
+    /** Represents a ScheduledEvent on WhatsApp */
+    export class ScheduledEvent {
+        name: string
+        startTimeTs: number
+        eventSendOptions: {
+            description?: string;
+            endTimeTs?: number;
+            location?: string;
+            callType?: string;
+            isEventCanceled?: boolean;
+            messageSecret?: string;
+        };
+
+        constructor(name: string, startTime: Date, options?: EventSendOptions)
     }
 
     /** Represents a Poll Vote on WhatsApp */
@@ -1297,14 +1423,19 @@ declare namespace WAWebJS {
         /** Should the bot send a quoted message without the quoted message if it fails to get the quote?
          * @default true (enabled) */
         ignoreQuoteErrors?: boolean
+        /**
+         * Should the bot wait for the message send result?
+         * @default false
+         */
+        waitUntilMsgSent?: boolean
     }
 
     /** Options for editing a message */
     export interface MessageEditOptions {
         /** Show links preview. Has no effect on multi-device accounts. */
         linkPreview?: boolean
-        /** Contacts that are being mentioned in the message */
-        mentions?: Contact[]
+        /** User IDs of users that being mentioned in the message */
+        mentions?: string[]
         /** Extra options */
         extra?: any
     }
@@ -1342,7 +1473,7 @@ declare namespace WAWebJS {
         static fromUrl: (url: string, options?: MediaFromURLOptions) => Promise<MessageMedia>
     }
 
-    export type MessageContent = string | MessageMedia | Location | Poll | Contact | Contact[] | List | Buttons | UrlLink | ProductMessage
+    export type MessageContent = string | MessageMedia | Location | Poll | Contact | Contact[] | List | Buttons | UrlLink | ProductMessage | ScheduledEvent
 
     /**
      * Represents a Contact on WhatsApp
@@ -1608,6 +1739,8 @@ declare namespace WAWebJS {
         getLabels: () => Promise<Label[]>,
         /** Add or remove labels to this Chat */
         changeLabels: (labelIds: Array<string | number>) => Promise<void>
+        /** Gets instances of all pinned messages in a chat */
+        getPinnedMessages: () => Promise<[Message]|[]>
         /** Sync history conversation of the Chat */
         syncHistory: () => Promise<boolean>
     }
