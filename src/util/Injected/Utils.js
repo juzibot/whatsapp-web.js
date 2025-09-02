@@ -699,7 +699,6 @@ exports.LoadUtils = () => {
                 model.groupMetadata.lidOwner = chat.groupMetadata.owner;
                 const owner = await window.WWebJS.getContact(chat.groupMetadata.owner._serialized);
                 model.groupMetadata.owner = owner.id;
-                console.log('this room has owner', chat.name);
             }
             model.isReadOnly = chat.groupMetadata.announce;
         }
