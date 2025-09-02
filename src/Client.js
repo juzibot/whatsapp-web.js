@@ -1384,9 +1384,10 @@ class Client extends EventEmitter {
         if (msg.mentionedJidList?.length) {
             await Promise.all(
                 msg.mentionedJidList.map(async (item, index) => {
+                    const jid = typeof item === 'object' ? item.id._serialized : item;
                     const contact = await this.getContactById(item);
                     const contactId = contact?.id._serialized;
-                    if (item.endsWith('@lid') && contactId) {
+                    if (jid.endsWith('@lid') && contactId) {
                         msg.mentionedJidList[index] = contactId;
                     }
                     msg.body = msg.body.replaceAll(`@${item.split('@')[0]}`, `@${contact.name || contact.pushname}`);
