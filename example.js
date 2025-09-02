@@ -62,7 +62,10 @@ client.on('ready', async () => {
     client.pupPage.on('error', function(err) {
         console.log('Page error: ' + err.toString());
     });
-    
+    console.log('getContacts');
+    const contactList = await client.getContacts();
+    console.log('getContacts done');
+    console.log(contactList.length);
 });
 
 client.on('message', async msg => {

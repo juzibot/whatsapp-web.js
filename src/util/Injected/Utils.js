@@ -755,8 +755,23 @@ exports.LoadUtils = () => {
         if (contact.id._serialized.endsWith('@lid')) {
             contact.id = contact.phoneNumber;
         }
-        const bizProfile = await window.Store.BusinessProfile.fetchBizProfile(wid);
-        bizProfile.profileOptions && (contact.businessProfile = bizProfile);
+        if (contact.isBusiness) {
+            const timeout = 10 * 1000;
+            // eslint-disable-next-line no-async-promise-executor
+            await new Promise(async (resolve) => {
+                let got = false;
+                setTimeout(() => {
+                    if (!got) {
+                        console.log('cannot get business profile after 10s for contact', contactId);
+                    }
+                    resolve();
+                }, timeout);
+                const bizProfile = await window.Store.BusinessProfile.fetchBizProfile(wid);
+                bizProfile.profileOptions && (contact.businessProfile = bizProfile);
+                got = true;
+                resolve();
+            });
+        }
         return window.WWebJS.getContactModel(contact);
     };
 
