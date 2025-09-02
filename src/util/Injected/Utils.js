@@ -612,7 +612,6 @@ exports.LoadUtils = () => {
         const isChannel = /@\w*newsletter\b/.test(chatId);
         const chatWid = window.Store.WidFactory.createWid(chatId);
         let chat;
-
         if (isChannel) {
             try {
                 chat = window.Store.NewsletterCollection.get(chatId);
@@ -696,9 +695,12 @@ exports.LoadUtils = () => {
                 result.id = item.contact?.phoneNumber || result.lid;
                 return result;
             });
-            model.groupMetadata.lidOwner = chat.groupMetadata.owner;
-            const owner = await window.WWebJS.getContact(chat.groupMetadata.owner._serialized);
-            model.groupMetadata.owner = owner.id;
+            if (chat.groupMetadata.owner) {
+                model.groupMetadata.lidOwner = chat.groupMetadata.owner;
+                const owner = await window.WWebJS.getContact(chat.groupMetadata.owner._serialized);
+                model.groupMetadata.owner = owner.id;
+                console.log('this room has owner', chat.name);
+            }
             model.isReadOnly = chat.groupMetadata.announce;
         }
 

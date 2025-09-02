@@ -66,6 +66,12 @@ client.on('ready', async () => {
     const contactList = await client.getContacts();
     console.log('getContacts done');
     console.log(contactList.length);
+    console.log(contactList.map(item => item.id._serialized));
+    const roomList = contactList.filter(item => item.id._serialized.endsWith('@g.us'));
+    for (const room of roomList) {
+        const roomChat = await client.getChatById(room.id._serialized);
+        console.log(roomChat.name);
+    }
 });
 
 client.on('message', async msg => {
