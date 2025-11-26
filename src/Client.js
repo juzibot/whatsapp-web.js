@@ -1318,7 +1318,6 @@ class Client extends EventEmitter {
 
             return contact?.id._serialized;
         } catch (err) {
-            console.error('Error fetching contact by ID:', err);
             return null;
         }
         
