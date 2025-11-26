@@ -1283,7 +1283,7 @@ class Client extends EventEmitter {
                 return newContactId;
             }
             return contactId;
-        }))));
+        })))).filter(item => !!item);
 
         const filteredContacts = await Promise.all(contactIds.map(async contactId => {
             const contact = await this.getContactById(contactId);
@@ -1311,11 +1311,17 @@ class Client extends EventEmitter {
             return lidHash[lid];
         }
 
-        let contact = await this.getContactById(lid);
+        try {
+            const contact = await this.getContactById(lid);
 
-        lidHash[lid] = contact?.id._serialized;
+            lidHash[lid] = contact?.id._serialized;
 
-        return contact?.id._serialized;
+            return contact?.id._serialized;
+        } catch (err) {
+            console.error('Error fetching contact by ID:', err);
+            return null;
+        }
+        
     }
 
     async fixMessageLid(msg) {
