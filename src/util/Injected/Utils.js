@@ -776,7 +776,7 @@ exports.LoadUtils = () => {
     };
 
     window.WWebJS.getContacts = () => {
-        const contacts = window.Store.Contact.getModelsArray();
+        const contacts = window.Store.Contact.getModelsArray().filter(item => !!item.id);
         return contacts.map(contact => window.WWebJS.getContactModel(contact));
     };
 
