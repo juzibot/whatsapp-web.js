@@ -1,7 +1,12 @@
 'use strict';
 
 const EventEmitter = require('events');
-const puppeteer = require('puppeteer');
+const puppeteer = require('puppeteer-extra');
+const anonymize = require('puppeteer-extra-plugin-anonymize-ua');
+const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+
+puppeteer.use(StealthPlugin());
+puppeteer.use(anonymize());
 const moduleRaid = require('@pedroslopez/moduleraid/moduleraid');
 
 const Util = require('./util/Util');
@@ -15,9 +20,11 @@ const { LoadUtils } = require('./util/Injected/Utils');
 const ChatFactory = require('./factories/ChatFactory');
 const ContactFactory = require('./factories/ContactFactory');
 const WebCacheFactory = require('./webCache/WebCacheFactory');
-const { ClientInfo, Message, MessageMedia, Contact, Location, Poll, PollVote, GroupNotification, Label, Call, Buttons, List, Reaction, Broadcast, ScheduledEvent } = require('./structures');
+const { ClientInfo, Message, MessageMedia, Contact, Location, Poll, PollVote, GroupNotification, Label, Call, Buttons, List, Reaction, Broadcast, UrlLink, ProductMessage, ScheduledEvent } = require('./structures');
 const NoAuth = require('./authStrategies/NoAuth');
 const {exposeFunctionIfAbsent} = require('./util/Puppeteer');
+
+const lidHash = {};
 
 /**
  * Starting point for interacting with the WhatsApp Web API
@@ -62,6 +69,7 @@ const {exposeFunctionIfAbsent} = require('./util/Puppeteer');
  * @fires Client#group_membership_request
  * @fires Client#vote_update
  */
+
 class Client extends EventEmitter {
     constructor(options = {}) {
         super();
@@ -106,6 +114,9 @@ class Client extends EventEmitter {
         } else {
             await this.pupPage.evaluate(ExposeLegacyAuthStore, moduleRaid.toString());
         }
+
+        // bridge browser log
+        this.pupPage.on('console', msg => console.log('PUPPETEER PAGE LOG:', msg.text()));
 
         const needAuthentication = await this.pupPage.evaluate(async () => {
             let state = window.AuthStore.AppState.state;
@@ -394,7 +405,10 @@ class Client extends EventEmitter {
      * @property {boolean} reinject is this a reinject?
      */
     async attachEventListeners() {
-        await exposeFunctionIfAbsent(this.pupPage, 'onAddMessageEvent', msg => {
+        await exposeFunctionIfAbsent(this.pupPage, 'onAddMessageEvent', async msg => {
+
+            await this.fixMessageLid(msg);
+
             if (msg.type === 'gp2') {
                 const notification = new GroupNotification(this, msg);
                 if (['add', 'invite', 'linked_group_join'].includes(msg.subtype)) {
@@ -461,7 +475,8 @@ class Client extends EventEmitter {
 
         let last_message;
 
-        await exposeFunctionIfAbsent(this.pupPage, 'onChangeMessageTypeEvent', (msg) => {
+        await exposeFunctionIfAbsent(this.pupPage, 'onChangeMessageTypeEvent', async (msg) => {
+            await this.fixMessageLid(msg);
 
             if (msg.type === 'revoked') {
                 const message = new Message(this, msg);
@@ -485,7 +500,8 @@ class Client extends EventEmitter {
 
         });
 
-        await exposeFunctionIfAbsent(this.pupPage, 'onChangeMessageEvent', (msg) => {
+        await exposeFunctionIfAbsent(this.pupPage, 'onChangeMessageEvent', async (msg) => {
+            await this.fixMessageLid(msg);
 
             if (msg.type !== 'revoked') {
                 last_message = msg;
@@ -523,7 +539,8 @@ class Client extends EventEmitter {
             }
         });
 
-        await exposeFunctionIfAbsent(this.pupPage, 'onRemoveMessageEvent', (msg) => {
+        await exposeFunctionIfAbsent(this.pupPage, 'onRemoveMessageEvent', async (msg) => {
+            await this.fixMessageLid(msg);
 
             if (!msg.isNewMsg) return;
 
@@ -538,7 +555,8 @@ class Client extends EventEmitter {
 
         });
 
-        await exposeFunctionIfAbsent(this.pupPage, 'onMessageAckEvent', (msg, ack) => {
+        await exposeFunctionIfAbsent(this.pupPage, 'onMessageAckEvent', async (msg, ack) => {
+            await this.fixMessageLid(msg);
 
             const message = new Message(this, msg);
 
@@ -561,7 +579,8 @@ class Client extends EventEmitter {
             this.emit(Events.UNREAD_COUNT, chat);
         });
 
-        await exposeFunctionIfAbsent(this.pupPage, 'onMessageMediaUploadedEvent', (msg) => {
+        await exposeFunctionIfAbsent(this.pupPage, 'onMessageMediaUploadedEvent', async (msg) => {
+            await this.fixMessageLid(msg);
 
             const message = new Message(this, msg);
 
@@ -639,7 +658,7 @@ class Client extends EventEmitter {
             this.emit(Events.INCOMING_CALL, cll);
         });
 
-        await exposeFunctionIfAbsent(this.pupPage, 'onReaction', (reactions) => {
+        await exposeFunctionIfAbsent(this.pupPage, 'onReaction', async (reactions) => {
             for (const reaction of reactions) {
                 /**
                      * Emitted when a reaction is sent, received, updated or removed
@@ -655,8 +674,27 @@ class Client extends EventEmitter {
                      * @param {string} reaction.senderId - Sender id
                      * @param {?number} reaction.ack - Ack
                      */
-
+                await this.fixMessageLid(reaction);
                 this.emit(Events.MESSAGE_REACTION, new Reaction(this, reaction));
+            }
+        });
+
+        await exposeFunctionIfAbsent(this.pupPage, 'onContactNameChange', async (contact, newName, oldName) => {
+            // we only listen to change:name here because there are too many change events which seem changing nothing
+            // there might be 2 events, 1 for @c.us, 1 for @lid, ignore the @lid event
+            if (contact.id.endsWith('@lid')) {
+                return;
+            }
+            const whatsappContact = await this.getContactById(contact.id);
+
+            this.emit(Events.CONTACT_NAME_CHANGE, whatsappContact, newName, oldName);
+
+            if (newName === null && !whatsappContact.isMyContact) {
+                this.emit(Events.CONTACT_REMOVE, whatsappContact);
+            }
+
+            if (oldName === null && whatsappContact.isMyContact) {
+                this.emit(Events.CONTACT_ADD, whatsappContact);
             }
         });
 
@@ -684,7 +722,8 @@ class Client extends EventEmitter {
             this.emit(Events.CHAT_ARCHIVED, _chat, currState, prevState);
         });
 
-        await exposeFunctionIfAbsent(this.pupPage, 'onEditMessageEvent', (msg, newBody, prevBody) => {
+        await exposeFunctionIfAbsent(this.pupPage, 'onEditMessageEvent', async (msg, newBody, prevBody) => {
+            await this.fixMessageLid(msg);
                 
             if(msg.type === 'revoked'){
                 return;
@@ -699,7 +738,8 @@ class Client extends EventEmitter {
             this.emit(Events.MESSAGE_EDIT, new Message(this, msg), newBody, prevBody);
         });
             
-        await exposeFunctionIfAbsent(this.pupPage, 'onAddMessageCiphertextEvent', msg => {
+        await exposeFunctionIfAbsent(this.pupPage, 'onAddMessageCiphertextEvent', async (msg) => {
+            await this.fixMessageLid(msg);
                 
             /**
                  * Emitted when messages are edited
@@ -743,6 +783,7 @@ class Client extends EventEmitter {
                     }
                 }
             });
+            window.Store.Contact.on('change:name', (contact, newName, oldName) => {window.onContactNameChange(contact, newName, oldName);});
             window.Store.Chat.on('change:unreadCount', (chat) => {window.onChatUnreadCountEvent(chat);});
 
             if (window.compareWwebVersions(window.Debug.VERSION, '>=', '2.3000.1014111620')) {
@@ -810,7 +851,23 @@ class Client extends EventEmitter {
                 }).bind(module);
             }
         });
-    }    
+
+        /**
+         * Emitted when the client has initialized and is ready to receive messages.
+         * @event Client#ready
+         */
+        this.emit(Events.READY);
+        // Disconnect when navigating away
+        // Because WhatsApp Web now reloads when logging out from the device, this also covers that case
+        this.pupPage.on('framenavigated', async () => {
+            const appState = await this.getState();
+            if(!appState || appState === WAState.PAIRING) {
+                await this.authStrategy.disconnect();
+                this.emit(Events.DISCONNECTED, 'NAVIGATION');
+                await this.destroy();
+            }
+        });
+    }
 
     async initWebVersionCache() {
         const { type: webCacheType, ...webCacheOptions } = this.options.webVersionCache;
@@ -845,9 +902,18 @@ class Client extends EventEmitter {
     /**
      * Closes the client
      */
-    async destroy() {
+    async destroy(stop = false) {
+        if (this._qrRefreshInterval) {
+            clearInterval(this._qrRefreshInterval);
+        }
         await this.pupBrowser.close();
-        await this.authStrategy.destroy();
+        if (!stop) {
+            await this.initialize();
+        }
+    }
+
+    async stop() {
+        await this.destroy(true);
     }
 
     /**
@@ -868,6 +934,7 @@ class Client extends EventEmitter {
         }
         
         await this.authStrategy.logout();
+        this.emit(Events.DISCONNECTED, 'INITIATIVE LOGOUT');
     }
 
     /**
@@ -961,10 +1028,25 @@ class Client extends EventEmitter {
         }
     
         if (options.mentions) {
+            const group = await this.getChatById(chatId);
+            const participants = options.mentions.map(mention => {
+                const result = group.participants.find(participant => participant.id._serialized === mention);
+                if (!result) {
+                    throw new Error(`participant ${mention} is not in the group`);
+                }
+                return result;
+            });
+            options.mentions = participants.map(participant => participant.lid._serialized);
             !Array.isArray(options.mentions) && (options.mentions = [options.mentions]);
             if (options.mentions.some((possiblyContact) => possiblyContact instanceof Contact)) {
                 console.warn('Mentions with an array of Contact are now deprecated. See more at https://github.com/pedroslopez/whatsapp-web.js/pull/2166.');
                 options.mentions = options.mentions.map((a) => a.id._serialized);
+            }
+            for (const mentionedParticipant of participants) {
+                const contact = await this.getContactById(mentionedParticipant.id._serialized);
+                if (contact) {
+                    content = content.replaceAll(`@${contact.name}`, `@${mentionedParticipant.lid.user}`).replaceAll(`@${contact.pushname}`, `@${mentionedParticipant.lid.user}`);
+                }
             }
         }
 
@@ -1023,6 +1105,23 @@ class Client extends EventEmitter {
             console.warn('Lists are now deprecated. See more at https://www.youtube.com/watch?v=hv1R1rLeVVE.');
             internalOptions.list = content;
             content = '';
+        } else if (content instanceof UrlLink) {
+            internalOptions.urlLink = content;
+            content = '';
+        } else if (content instanceof ProductMessage) {
+            const productData = (await Util.queryProduct(content.businessOwnerJid, content.productId, this.pupPage)).data;
+            console.log(productData);
+            internalOptions.productMessage = {
+                title: content.title,
+                description: content.description,
+                businessOwnerJid: content.businessOwnerJid,
+                productId: content.productId,
+                retailerId: productData.retailer_id,
+                currency: productData.currency,
+                price: Number(productData.price),
+                url: productData.url,
+                thumbnailMedia: content.thumbnailMedia,
+            };
         }
 
         if (internalOptions.sendMediaAsSticker && internalOptions.media) {
@@ -1177,8 +1276,21 @@ class Client extends EventEmitter {
         let contacts = await this.pupPage.evaluate(() => {
             return window.WWebJS.getContacts();
         });
+        const contactIds = Array.from(new Set(await Promise.all(contacts.map(async contact => {
+            const contactId = contact.id._serialized;
+            if (contactId.endsWith('@lid')) {
+                const newContactId = await this.getOriginalContactIdByLid(contactId);
+                return newContactId;
+            }
+            return contactId;
+        })))).filter(item => !!item);
 
-        return contacts.map(contact => ContactFactory.create(this, contact));
+        const filteredContacts = await Promise.all(contactIds.map(async contactId => {
+            const contact = await this.getContactById(contactId);
+            return contact;
+        }));
+        
+        return filteredContacts.map(contact => ContactFactory.create(this, contact));
     }
 
     /**
@@ -1192,6 +1304,104 @@ class Client extends EventEmitter {
         }, contactId);
 
         return ContactFactory.create(this, contact);
+    }
+
+    async getOriginalContactIdByLid(lid) {
+        if (lidHash[lid]) {
+            return lidHash[lid];
+        }
+
+        try {
+            const contact = await this.getContactById(lid);
+
+            lidHash[lid] = contact?.id._serialized;
+
+            return contact?.id._serialized;
+        } catch (err) {
+            return null;
+        }
+        
+    }
+
+    async fixMessageLid(msg) {
+        if (msg.id.participant && msg.id.participant.endsWith('@lid')) {
+            const contactId = await this.getOriginalContactIdByLid(msg.id.participant);
+            if (contactId) {
+                msg.id.participant = contactId;
+            }
+        }
+
+        if (msg.reactionParentKey?.participant && msg.reactionParentKey.participant.endsWith('@lid')) {
+            const contactId = await this.getOriginalContactIdByLid(msg.reactionParentKey.participant);
+            if (contactId) {
+                msg.reactionParentKey.participant = contactId;
+            }
+        }
+
+        if (msg.parentMsgKey?.participant && msg.parentMsgKey.participant.endsWith('@lid')) {
+            const contactId = await this.getOriginalContactIdByLid(msg.parentMsgKey.participant);
+            if (contactId) {
+                msg.parentMsgKey.participant = contactId;
+            }
+        }
+
+        if (msg.msgKey?.participant && msg.msgKey.participant.endsWith('@lid')) {
+            const contactId = await this.getOriginalContactIdByLid(msg.msgKey.participant);
+            if (contactId) {
+                msg.msgKey.participant = contactId;
+            }
+        }
+
+        if (msg.from && msg.from.endsWith('@lid')) {
+            const contactId = await this.getOriginalContactIdByLid(msg.from);
+            if (contactId) {
+                msg.from = contactId;
+            }
+        }
+
+        if (msg.author && msg.author.endsWith('@lid')) {
+            const contactId = await this.getOriginalContactIdByLid(msg.author);
+            if (contactId) {
+                msg.author = contactId;
+            }
+        }
+
+        if (msg.senderUserJid && msg.senderUserJid.endsWith('@lid')) {
+            const contactId = await this.getOriginalContactIdByLid(msg.senderUserJid);
+            if (contactId) {
+                msg.senderUserJid = contactId;
+            }
+        }
+        
+        if (msg.recipients?.length) {
+            await Promise.all(
+                msg.recipients.map(async (item, index) => {
+                    if (item.endsWith('@lid')) {
+                        const contactId = await this.getOriginalContactIdByLid(item);
+                        if (contactId) {
+                            msg.recipients[index] = contactId;
+                        }
+                    }
+                })
+            );
+        }
+
+        if (msg.mentionedJidList?.length) {
+            await Promise.all(
+                msg.mentionedJidList.map(async (item, index) => {
+                    const jid = typeof item === 'object' ? item.id._serialized : item;
+                    const contact = await this.getContactById(item);
+                    const contactId = contact?.id._serialized;
+                    if (jid.endsWith('@lid') && contactId) {
+                        msg.mentionedJidList[index] = contactId;
+                    }
+                    msg.body = msg.body.replaceAll(`@${item.split('@')[0]}`, `@${contact.name || contact.pushname}`);
+                    if (contactId) {
+                        msg.body = msg.body.replaceAll(`@${contactId.split('@')[0]}`, `@${contact.name || contact.pushname}`);
+                    }
+                })
+            );
+        }
     }
     
     async getMessageById(messageId) {
@@ -1584,7 +1794,11 @@ class Client extends EventEmitter {
         return await this.pupPage.evaluate(async number => {
             const wid = window.Store.WidFactory.createWid(number);
             const result = await window.Store.QueryExist(wid);
-            if (!result || result.wid === undefined) return null;
+            /**
+             * The number of the result may be different with the input number.
+             * See: https://github.com/juzibot/whatsapp-web.js/issues/23
+             */
+            if (!result || result.wid === undefined || result.wid._serialized !== number) return null;
             return result.wid;
         }, number);
     }
@@ -1686,6 +1900,7 @@ class Client extends EventEmitter {
             }
 
             parentGroupId && (parentGroupWid = window.Store.WidFactory.createWid(parentGroupId));
+            participantWids.map(item => item.lid = item);
 
             try {
                 createGroupResult = await window.Store.GroupUtils.createGroup(
@@ -2041,6 +2256,27 @@ class Client extends EventEmitter {
         return blockedContacts.map(contact => ContactFactory.create(this.client, contact));
     }
 
+    /**
+     * Try to find a message with id.id or id._serialized
+     * @returns {Promise<Message | undefined>}
+     */
+    async getMessageWithId(id) {
+        const message = await this.pupPage.evaluate(async (id) => {
+            let message;
+            message = window.Store.Msg.get(id);
+            if (message) {
+                return message;
+            }
+            for (const key in window.Store.Msg._index) {
+                const msg = window.Store.Msg.get(key);
+                if (msg.id.id === id) {
+                    return JSON.stringify(msg);
+                }
+            }
+        }, id);
+        return message ? JSON.parse(message) : undefined;
+    }
+    
     /**
      * Sets the current user's profile picture.
      * @param {MessageMedia} media

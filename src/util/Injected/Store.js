@@ -254,4 +254,28 @@ exports.ExposeStore = () => {
     window.injectToFunction({ module: 'WAWebBackendJobsCommon', function: 'mediaTypeFromProtobuf' }, (func, ...args) => { const [proto] = args; return proto.locationMessage ? null : func(...args); });
 
     window.injectToFunction({ module: 'WAWebE2EProtoUtils', function: 'typeAttributeFromProtobuf' }, (func, ...args) => { const [proto] = args; return proto.locationMessage || proto.groupInviteMessage ? 'text' : func(...args); });
+
+    window.injectToFunction({ module: 'WAWebFileUtils', function: 'getAudioDuration'}, (func, ...args) => {
+        const [file] = args;
+        let src;
+        let audio;
+        return new Promise((resolve, reject) => {
+            audio = document.createElement('audio');
+            audio.addEventListener('loadeddata', resolve);
+            audio.addEventListener('error', (e) => {{
+                reject(e);
+            }});
+            src = URL.createObjectURL(file);
+            audio.src = src;
+        }).then(() => {
+            return ~~audio.seekable.end(0);
+        }).catch((e) => {
+            console.error(e);
+            return 5;
+        }).finally(() => {
+            src && URL.revokeObjectURL(src);
+        });
+    });
+    
+    window.injectToFunction({ module: 'WAWebLid1X1MigrationGating', function: 'Lid1X1MigrationUtils.isLidMigrated' }, () => false);
 };
