@@ -23,5 +23,3 @@ jobs:
         run: npm install npm@latest -g
             
       - run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{secrets.JUZI_ADMIN_SCOPE_NPM_TOKEN}}
