@@ -637,6 +637,13 @@ https://d.05ct.cn/hw0606
     } else if (msg.body === '!createRoom') {
         console.log('create room');
         await client.createGroup('hello', ['8615383510250@c.us']);
+    } else if (msg.body === '!postStatus') {
+        await client.sendMessage('status@broadcast', 'Hello there!');
+        // send with a different style
+        await client.sendMessage('status@broadcast', 'Hello again! Looks different?', {
+            fontStyle: 1,
+            backgroundColor: '#0b3296'
+        });
     }
 });
 
