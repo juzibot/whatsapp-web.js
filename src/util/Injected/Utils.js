@@ -143,10 +143,46 @@ exports.LoadUtils = () => {
         let vcardOptions = {};
         if (options.contactCard) {
             let contact = window.Store.Contact.get(options.contactCard);
+            let vcardStr;
+            let contactName;
+            if (typeof contact.isBusiness === 'boolean' && typeof contact.verifiedName === 'string') {
+                // contact loaded
+                if (contact.isBusiness) {
+                    vcardStr = 'BEGIN:VCARD\n' +
+                        'VERSION:3.0\n' +
+                        `N:;${contact.verifiedName};;;\n` +
+                        `FN:${contact.verifiedName}\n` +
+                        `X-WA-BIZ-NAME:${contact.verifiedName}\n` +
+                        (contact.businessProfile.description ? `X-WA-BIZ-DESCRIPTION:${contact.businessProfile.description}\n` : '') +
+                        `ORG:${contact.verifiedName};\n` +
+                        `TEL;type=CELL;type=VOICE;waid=${contact.id.user}:${window.Store.NumberInfo.formatPhone(contact.id.user)}\n` +
+                        'END:VCARD';
+                } else {
+                    vcardStr = window.Store.VCard.vcardFromContactModel(contact).vcard;
+                    contactName = contact.formattedName;
+                }
+            } else {
+                // contact not loaded
+                const result = await window.Store.QueryExist(contact.id);
+                if (!result || !result.biz) {
+                    vcardStr = window.Store.VCard.vcardFromContactModel(contact).vcard;
+                    contactName = contact.formattedName;
+                } else {
+                    console.log(result.bizInfo);
+                    vcardStr = 'BEGIN:VCARD\n' +
+                        'VERSION:3.0\n' +
+                        `N:;${result.bizInfo.verifiedName.name};;;\n` +
+                        `FN:${result.bizInfo.verifiedName.name}\n` +
+                        `X-WA-BIZ-NAME:${result.bizInfo.verifiedName.name}\n` +
+                        `ORG:${result.bizInfo.verifiedName.name};\n` +
+                        `TEL;type=CELL;type=VOICE;waid=${result.wid.user}:${window.Store.NumberInfo.formatPhone(result.wid.user)}\n` +
+                        'END:VCARD';
+                }
+            }
             vcardOptions = {
-                body: window.Store.VCard.vcardFromContactModel(contact).vcard,
+                body: vcardStr,
                 type: 'vcard',
-                vcardFormattedName: contact.formattedName
+                vcardFormattedName: contactName,
             };
             delete options.contactCard;
         } else if (options.contactCardList) {
@@ -228,6 +264,53 @@ exports.LoadUtils = () => {
             delete listOptions.list.footer;
         }
 
+        let urlLinkOptions = {};
+        if(options.urlLink) {
+            urlLinkOptions = {
+                type: 'chat',
+                subtype: 'url',
+                thumbnail: options.urlLink.thumbnailData,
+                body: options.urlLink.url,
+                canonicalUrl: options.urlLink.url,
+                matchedText: options.urlLink.url,
+                title: options.urlLink.title,
+                description: options.urlLink.description,
+            };
+        }
+
+        let productOptions = {};
+        if(options.productMessage) {
+            const fileData = await window.WWebJS.processMediaData(options.productMessage.thumbnailMedia, {
+                forceVoice: false,
+                forceDocument: false,
+                forceGif: false
+            });
+            productOptions = {
+                type: 'product',
+                title: options.productMessage.title,
+                description: options.productMessage.description,
+                businessOwnerJid: options.productMessage.businessOwnerJid,
+                productId: options.productMessage.productId,
+                retailerId: options.productMessage.retailerId,
+                url: options.productMessage.url,
+                currencyCode: options.productMessage.currency,
+                priceAmount1000: options.productMessage.price,
+                body: fileData.__x_preview,
+                filehash: fileData.__x_filehash,
+                encFilehash: fileData.__x_encFilehash,
+                size: fileData.__x_size,
+                mediaKey: fileData.__x_mediaKey,
+                mediaKeyTimestamp: fileData.__x_mediaKeyTimestamp,
+                width: fileData.__x_fullWidth,
+                height: fileData.__x_fullHeight,
+                mimetype: fileData.__x_mediaBlob._blob.type,
+                isViewOnce: false,
+                staticUrl: '',
+                deprecatedMms3Url: fileData.deprecatedMms3Url,
+                directPath: fileData.__x_directPath,
+                productImageCount: 1,
+            };
+        }
         const botOptions = {};
         if (options.invokedBotWid) {
             botOptions.messageSecret = window.crypto.getRandomValues(new Uint8Array(32));
@@ -287,6 +370,8 @@ exports.LoadUtils = () => {
             ...vcardOptions,
             ...buttonOptions,
             ...listOptions,
+            ...urlLinkOptions,
+            ...productOptions,
             ...botOptions,
             ...extraOptions
         };
@@ -563,7 +648,6 @@ exports.LoadUtils = () => {
         const isChannel = /@\w*newsletter\b/.test(chatId);
         const chatWid = window.Store.WidFactory.createWid(chatId);
         let chat;
-
         if (isChannel) {
             try {
                 chat = window.Store.NewsletterCollection.get(chatId);
@@ -640,10 +724,18 @@ exports.LoadUtils = () => {
             model.isGroup = true;
             const chatWid = window.Store.WidFactory.createWid(chat.id._serialized);
             await window.Store.GroupMetadata.update(chatWid);
-            chat.groupMetadata.participants._models
-                .filter(x => x.id?._serialized?.endsWith('@lid'))
-                .forEach(x => x.contact?.phoneNumber && (x.id = x.contact.phoneNumber));
             model.groupMetadata = chat.groupMetadata.serialize();
+            model.groupMetadata.participants = chat.groupMetadata.participants._models.map(item => {
+                const result = item.serialize();
+                result.lid = result.id;
+                result.id = item.contact?.phoneNumber || result.lid;
+                return result;
+            });
+            if (chat.groupMetadata.owner) {
+                model.groupMetadata.lidOwner = chat.groupMetadata.owner;
+                const owner = await window.WWebJS.getContact(chat.groupMetadata.owner._serialized);
+                model.groupMetadata.owner = owner.id;
+            }
             model.isReadOnly = chat.groupMetadata.announce;
         }
 
@@ -700,13 +792,28 @@ exports.LoadUtils = () => {
         if (contact.id._serialized.endsWith('@lid')) {
             contact.id = contact.phoneNumber;
         }
-        const bizProfile = await window.Store.BusinessProfile.fetchBizProfile(wid);
-        bizProfile.profileOptions && (contact.businessProfile = bizProfile);
+        if (contact.isBusiness) {
+            const timeout = 10 * 1000;
+            // eslint-disable-next-line no-async-promise-executor
+            await new Promise(async (resolve) => {
+                let got = false;
+                setTimeout(() => {
+                    if (!got) {
+                        console.log('cannot get business profile after 10s for contact', contactId);
+                    }
+                    resolve();
+                }, timeout);
+                const bizProfile = await window.Store.BusinessProfile.fetchBizProfile(wid);
+                bizProfile.profileOptions && (contact.businessProfile = bizProfile);
+                got = true;
+                resolve();
+            });
+        }
         return window.WWebJS.getContactModel(contact);
     };
 
     window.WWebJS.getContacts = () => {
-        const contacts = window.Store.Contact.getModelsArray();
+        const contacts = window.Store.Contact.getModelsArray().filter(item => !!item.id);
         return contacts.map(contact => window.WWebJS.getContactModel(contact));
     };
 

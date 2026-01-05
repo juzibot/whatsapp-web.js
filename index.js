@@ -19,6 +19,8 @@ module.exports = {
     BusinessContact: require('./src/structures/BusinessContact'),
     ClientInfo: require('./src/structures/ClientInfo'),
     Location: require('./src/structures/Location'),
+    UrlLink: require('./src/structures/UrlLink'),
+    ProductMessage: require('./src/structures/ProductMessage'),
     Poll: require('./src/structures/Poll'),
     ScheduledEvent: require('./src/structures/ScheduledEvent'),
     ProductMetadata: require('./src/structures/ProductMetadata'),

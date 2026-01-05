@@ -1,4 +1,4 @@
-const { Client, Location, Poll, List, Buttons, LocalAuth } = require('./index');
+const { Client, Location, List, Buttons, LocalAuth, UrlLink, MessageMedia, ProductMessage, Poll } = require('./index');
 
 const client = new Client({
     authStrategy: new LocalAuth(),
@@ -17,7 +17,8 @@ const client = new Client({
     puppeteer: { 
         // args: ['--proxy-server=proxy-server-that-requires-authentication.example.com'],
         headless: false,
-    },
+        devtools: true,
+    }
     // pairWithPhoneNumber: {
     //     phoneNumber: '96170100100' // Pair with phone number (format: <COUNTRY_CODE><PHONE_NUMBER>)
     //     showNotification: true,
@@ -61,15 +62,41 @@ client.on('ready', async () => {
     client.pupPage.on('error', function(err) {
         console.log('Page error: ' + err.toString());
     });
-    
+    console.log('getContacts');
+    const contactList = await client.getContacts();
+    console.log('getContacts done');
+    console.log(contactList.length);
+    console.log(contactList.map(item => item.id._serialized));
+    const roomList = contactList.filter(item => item.id._serialized.endsWith('@g.us'));
+    for (const room of roomList) {
+        const roomChat = await client.getChatById(room.id._serialized);
+        console.log(roomChat.name);
+    }
 });
 
 client.on('message', async msg => {
-    console.log('MESSAGE RECEIVED', msg);
+    console.log('MESSAGE RECEIVED', JSON.stringify(msg));
 
     if (msg.body === '!ping reply') {
         // Send a new message as a reply to the current one
         msg.reply('pong');
+
+    } else if (msg.body === '!participants') {
+        const chat = await msg.getChat();
+        let reply = '';
+        if (chat.isGroup) {
+            console.log(chat.participants);
+            const participants = chat.participants;
+            for (const participant of participants) {
+                const participantId = participant.id._serialized;
+                const participantContact = await client.getContactById(participantId);
+                console.log(participantContact);
+                reply += `Participant: ${participantContact.name} - ${participantContact.id._serialized}\n`;
+            }
+            msg.reply(reply, undefined, {linkPreview: false});
+        } else {
+            msg.reply('Not a group!');
+        }
 
     } else if (msg.body === '!ping') {
         // Send a new message to the same chat
@@ -199,6 +226,7 @@ client.on('message', async msg => {
         console.log(result);
     } else if (msg.body === '!groupinfo') {
         let chat = await msg.getChat();
+        console.log(chat);
         if (chat.isGroup) {
             msg.reply(`
                 *Group Details*
@@ -412,6 +440,30 @@ client.on('message', async msg => {
     } else if (msg.body === '!removelabels') {
         const chat = await msg.getChat();
         await chat.changeLabels([]);
+    } else if (msg.body === '!businesscontact') {
+        const contact = await client.getContactById('14692648170@c.us');
+        client.sendMessage(msg.from, contact);
+    } else if (msg.body === '!product') {
+        client.sendMessage(msg.from, new ProductMessage(
+            '14692648170@s.whatsapp.net',
+            '24283200571271078',
+            'title',
+            'description',
+            await MessageMedia.fromUrl('https://x.boardgamearena.net/data/themereleases/current/games/arknova/230622-0954/img/animals/A523_DomesticRabbit.jpg'),
+        ));
+    } else if (msg.body === '!store') {
+        client.sendMessage(msg.from, 'https://wa.me/c/14692648170');
+    } else if (msg.body === '!contact') {
+        const contact = await client.getContactById('8613812345678@c.us');
+        client.sendMessage(msg.from, contact);
+    } else if (msg.body === '!link') {
+        const urlLink = new UrlLink(
+            'https://www.baidu.com',
+            '百度',
+            '百度一下，你也不知道',
+            await MessageMedia.fromUrl('https://www.baidu.com/img/PCtm_d9c8750bed0b3c7d089fa7d55720d6cf.png')
+        );
+        client.sendMessage(msg.from, urlLink);
     } else if (msg.body === '!approverequest') {
         /**
          * Presented an example for membership request approvals, the same examples are for the request rejections.
@@ -523,6 +575,68 @@ client.on('message', async msg => {
         // NOTE: this action will take effect after you restart the client.
         const backgroundSync = await client.setBackgroundSync(true);
         console.log(backgroundSync);
+    } else if (msg.body === '!sendLink') {
+        const text = `圓圓的午安分享：
+🌹飯後半小時左右，適當地刺激心包經，可以增加心臟供血，有效保護心臟，非常適合老年人
+
+👉專屬第26課中醫養生入口
+
+https://d.05ct.cn/hw0606 
+
+‼️人參補膏活動已開啟！
+數量不多，有需要的趕緊聯系圓圓哦`;
+        console.time('sendLink');
+        client.sendMessage(msg.from, text);
+        console.timeEnd('sendLink');
+    } else if (msg.body === '!listContact') {
+        const contacts = await client.getContacts();
+        console.log(contacts);
+        return contacts.map(contact => contact.id._serialized);
+    } else if (msg.body === '!mention' && (msg.from.endsWith('@g.us') || msg.to.endsWith('@g.us'))) {
+        const group = await msg.getChat();
+        await group.sendMessage('123 @我叫苏菲', {
+            mentions: ['8615130683703@c.us']
+        });
+    } else if (msg.body === '!kick') {
+        const group = await msg.getChat();
+        group.removeParticipants(['8615130683703@c.us']);
+    } else if (msg.body === '!add') {
+        const group = await msg.getChat();
+        const result = await group.addParticipants(['8615130683703@c.us']);
+        console.log(result);
+    } else if (msg.body === '!logout') {
+        client.logout();
+    } else if (msg.body === '!save') {
+        const contact = await client.getContactById('8615383510250@c.us');
+        if (contact.isMyContact) {
+            console.log('8615383510250 is my contact');
+            return;
+        }
+        client.saveOrEditAddressbookContact('8615383510250', 'fff存上了', '', true);
+    } else if (msg.body === '!remove') {
+        const contact = await client.getContactById('8615383510250@c.us');
+        if (!contact.isMyContact) {
+            console.log('8615383510250 is my contact');
+            return;
+        }
+        client.deleteAddressbookContact('8615383510250');
+    } else if (msg.body === '!sendAudio') {
+        const audio = await MessageMedia.fromUrl('https://s3.cn-northwest-1.amazonaws.com.cn/xiaoju-new-resource-test/permanent/material/646d818baf71f175124fabde/b0df2ab4-099f-4005-979d-e86da4dba4bb/14%E7%A7%92.mp3');
+        client.sendMessage(msg.from, audio, {
+            sendAudioAsVoice: true
+        });
+    } else if (msg.body === '!sendVideo') {
+        const video = await MessageMedia.fromUrl('https://s3.cn-northwest-1.amazonaws.com.cn/xiaoju-resource-pathboost/permanent/material/5d22ddf650ae58496536464e/c4f6b4d1-4bcb-4c33-a28b-de5d64942d3e/%E5%95%8A%E6%98%AF%20%3D-sada~!31%23%24.mp4');
+        await client.sendMessage(msg.from, 'gif');
+        await client.sendMessage(msg.from, video, {
+            sendVideoAsGif: true
+        });
+        await client.sendMessage(msg.from, 'video');
+        await client.sendMessage(msg.from, video, {
+        });
+    } else if (msg.body === '!createRoom') {
+        console.log('create room');
+        await client.createGroup('hello', ['8615383510250@c.us']);
     } else if (msg.body === '!postStatus') {
         await client.sendMessage('status@broadcast', 'Hello there!');
         // send with a different style
@@ -536,6 +650,7 @@ client.on('message', async msg => {
 client.on('message_create', async (msg) => {
     // Fired on all message creations, including your own
     if (msg.fromMe) {
+        console.log('MESSAGE_CREATE by me:',msg);
         // do stuff here
     }
 
@@ -572,6 +687,7 @@ client.on('message_revoke_me', async (msg) => {
 });
 
 client.on('message_ack', (msg, ack) => {
+    // console.log('message_ack', msg, ack);
     /*
         == ACK VALUES ==
         ACK_ERROR: -1
@@ -584,6 +700,9 @@ client.on('message_ack', (msg, ack) => {
 
     if (ack == 3) {
         // The message was read
+    }
+    if (ack == 1 && msg.fromMe) {
+        client.emit('message', msg);
     }
 });
 
@@ -619,6 +738,13 @@ client.on('call', async (call) => {
 
 client.on('disconnected', (reason) => {
     console.log('Client was logged out', reason);
+    if (!client.pupPage) {
+        client.initialize();
+    }
+});
+
+client.on('contact_name_change', (contact, newName, oldName) => {
+    console.log('contact name change', contact, newName, oldName);
 });
 
 client.on('contact_changed', async (message, oldId, newId, isContact) => {
@@ -703,4 +829,19 @@ client.on('message_reaction', async (reaction) => {
 client.on('vote_update', (vote) => {
     /** The vote that was affected: */
     console.log(vote);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('Config', '###########################');
+    console.error('Config', `unhandledRejection: ${reason} ${promise}`);
+    console.error('Config', '###########################');
+    promise.catch(err => {
+        const message = err.message;
+        console.error('Config', `process.on(unhandledRejection) promise.catch(${message})`);
+    });
+});
+process.on('uncaughtException', e => {
+    console.error('Config', '###########################');
+    console.error('Config', `uncaughtException: ${e.stack}`);
+    console.error('Config', '###########################');
 });

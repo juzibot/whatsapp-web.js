@@ -45,7 +45,7 @@ declare namespace WAWebJS {
         /** Pins the Chat and returns its new Pin state */
         pinChat(chatId: string): Promise<boolean>
 
-        /** Unpins the Chat and returns its new Pin state */
+        /** Unpins the  Chat and returns its new Pin state */
         unpinChat(chatId: string): Promise<boolean>
 
         /** Creates a new group */
@@ -74,6 +74,9 @@ declare namespace WAWebJS {
 
         /** Closes the client */
         destroy(): Promise<void>
+
+        /** Stop the client */
+        stop(): Promise<void>
 
         /** Logs out the client, closing the current session */
         logout(): Promise<void>
@@ -140,6 +143,9 @@ declare namespace WAWebJS {
 
         /** Gets the Contact's common groups with you. Returns empty array if you don't have any common group. */
         getCommonGroups(contactId: string): Promise<ChatId[]>
+
+        /** Try to find a message with id.id or id._serialized */
+        getMessageWithId(id: string): Promise<Message | undefined>
 
         /** Gets the current connection state for the client */
         getState(): Promise<WAState>
@@ -508,6 +514,8 @@ declare namespace WAWebJS {
         /** Emitted when the RemoteAuth session is saved successfully on the external Database */
         on(event: 'remote_session_saved', listener: () => void): this
 
+        /** Emitted when a contact name changes */
+        on(event: 'contact_name_change', listener: (contact: Contact, newName: string, oldName: string) => void): this
         /**
          * Emitted when some poll option is selected or deselected,
          * shows a user's current selected option(s) on the poll
@@ -968,6 +976,11 @@ declare namespace WAWebJS {
         SCHEDULED_EVENT_CREATION = 'scheduled_event_creation',
     }
 
+    /** Message subtypes */
+    export enum MessageSubtypes {
+        URL_LINK = 'url',
+    }
+
     /** Client status */
     export enum Status {
         INITIALIZING = 0,
@@ -1080,6 +1093,10 @@ declare namespace WAWebJS {
         isStarred: boolean,
         /** Location information contained in the message, if the message is type "location" */
         location: Location,
+        /** UrlLink information contained in the message, if the message is type "url" */
+        urlLink: UrlLink,
+        /** ProductMessage information contained in the message, if the message is type "product" */
+        productMessage: ProductMessage,
         /** List of vCards contained in the message */
         vCards: string[],
         /** Invite v4 info */
@@ -1283,6 +1300,25 @@ declare namespace WAWebJS {
         constructor(pollName: string, pollOptions: Array<string>, options?: PollSendOptions)
     }
 
+    export class UrlLink {
+        url: string
+        title?: string | null
+        description?: string | null
+        thumbnailData?: string | null
+
+        constructor(url: string, title?: string, description?: string, thumbnailMedia?: MessageMedia)
+    }
+
+    export class ProductMessage {
+        businessOwnerJid: string
+        productId: string
+        title?: string | null
+        description?: string | null
+        thumbnailMedia: MessageMedia
+
+        constructor(businessOwnerJid: string, productId: string, title?: string, description?: string, thumbnailMedia?: MessageMedia)
+    }
+
     /** ScheduledEvent send options */
     export interface ScheduledEventSendOptions {
         /** The scheduled event description */
@@ -1481,7 +1517,7 @@ declare namespace WAWebJS {
         static fromUrl: (url: string, options?: MediaFromURLOptions) => Promise<MessageMedia>
     }
 
-    export type MessageContent = string | MessageMedia | Location | Poll | Contact | Contact[] | List | Buttons | ScheduledEvent
+    export type MessageContent = string | MessageMedia | Location | Poll | Contact | Contact[] | List | Buttons | UrlLink | ProductMessage | ScheduledEvent
 
     /**
      * Represents a Contact on WhatsApp
