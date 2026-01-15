@@ -130,7 +130,12 @@ class Client extends EventEmitter {
         }
 
         // bridge browser log
-        this.pupPage.on('console', msg => console.log('PUPPETEER PAGE LOG:', msg.text()));
+        this.pupPage.on('console', msg => {
+            console.log('PUPPETEER PAGE LOG:', msg.text());
+            if (msg.text().includes('ERR_OUT_OF_MEMORY')) {
+                this.emit(Events.CHROME_OOM);
+            }
+        });
 
         const needAuthentication = await this.pupPage.evaluate(async () => {
             let state = window.AuthStore.AppState.state;

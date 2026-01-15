@@ -75,7 +75,8 @@ exports.Events = {
     CONTACT_NAME_CHANGE: 'contact_name_change',
     CONTACT_ADD: 'contact_add',
     CONTACT_REMOVE: 'contact_remove',
-    VOTE_UPDATE: 'vote_update'
+    VOTE_UPDATE: 'vote_update',
+    CHROME_OOM: 'chrome_oom',
 };
 
 /**
