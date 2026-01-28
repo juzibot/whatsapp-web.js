@@ -9,15 +9,53 @@ exports.LoadUtils = () => {
         return await window.Store.ForwardUtils.forwardMessages({'chat': chat, 'msgs' : [msg], 'multicast': true, 'includeCaption': true, 'appendedText' : undefined});
     };
 
+    // window.WWebJS.sendSeen = async (chatId) => {
+    //     const chat = await window.WWebJS.getChat(chatId, { getAsModel: false });
+    //     if (chat) {
+    //         window.Store.WAWebStreamModel.Stream.markAvailable();
+    //         await window.Store.SendSeen.markSeen(chat);
+    //         window.Store.WAWebStreamModel.Stream.markUnavailable();
+    //         return true;
+    //     }
+    //     return false;
+    // };
+
     window.WWebJS.sendSeen = async (chatId) => {
         const chat = await window.WWebJS.getChat(chatId, { getAsModel: false });
-        if (chat) {
+        if (!chat) return false;
+
+        const isChannel = window.Store.ChatGetters.getIsNewsletter(chat);
+        const isStatus = window.Store.ChatGetters.getIsBroadcast(chat);
+
+        const canUseSendSeen = typeof chat.markedUnread !== 'undefined';
+
+        try {
             window.Store.WAWebStreamModel.Stream.markAvailable();
-            await window.Store.SendSeen.markSeen(chat);
-            window.Store.WAWebStreamModel.Stream.markUnavailable();
+
+            if (canUseSendSeen && window.Store.SendSeen.sendSeen && !isChannel && !isStatus) {
+                await window.Store.SendSeen.sendSeen(chat);
+            } else if (window.Store.SendSeen.markSeen) {
+                // fallback aman
+                await window.Store.SendSeen.markSeen(chat);
+            } else {
+                return false;
+            }
+
             return true;
+        } catch (err) {
+            // fallback terakhir (ANTI CRASH)
+            try {
+                if (window.Store.SendSeen.markSeen) {
+                    await window.Store.SendSeen.markSeen(chat);
+                    return true;
+                }
+            } catch (e) {
+                console.error('Error marking seen:', e);
+            }
+            return false;
+        } finally {
+            window.Store.WAWebStreamModel.Stream.markUnavailable();
         }
-        return false;
     };
 
     window.WWebJS.sendMessage = async (chat, content, options = {}) => {
