@@ -88,7 +88,7 @@ class Message extends Base {
          * @type {string}
          */
         this.author = (typeof (data.author) === 'object' && data.author !== null) ? data.author._serialized : data.author;
-        this.author = this.author?.replace(/:/g, '');
+        this.author = this.author?.replace(/:(.*?)@/, '@');
 
         /**
          * String that represents from which device type the message was sent
