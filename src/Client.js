@@ -1354,6 +1354,7 @@ class Client extends EventEmitter {
     }
 
     async getOriginalContactIdByLid(lid) {
+        lid = lid.replace(/:(.*?)@/, '@');
         if (lidHash[lid]) {
             return lidHash[lid];
         }
