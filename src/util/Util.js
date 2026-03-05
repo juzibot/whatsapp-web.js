@@ -181,6 +181,13 @@ class Util {
     static setFfmpegPath(path) {
         ffmpeg.setFfmpegPath(path);
     }
+
+    static async queryProduct(ownerId, productId, pupPage) {
+        return pupPage.evaluate((ownerId, productId) => {
+            const ownerWid = window.Store.WidFactory.createWid(ownerId);
+            return window.Store.QueryProduct.queryProduct(ownerWid, productId);
+        }, ownerId, productId);
+    }
 }
 
 module.exports = Util;

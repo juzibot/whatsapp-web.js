@@ -72,7 +72,11 @@ exports.Events = {
     BATTERY_CHANGED: 'change_battery',
     INCOMING_CALL: 'call',
     REMOTE_SESSION_SAVED: 'remote_session_saved',
-    VOTE_UPDATE: 'vote_update'
+    CONTACT_NAME_CHANGE: 'contact_name_change',
+    CONTACT_ADD: 'contact_add',
+    CONTACT_REMOVE: 'contact_remove',
+    VOTE_UPDATE: 'vote_update',
+    CHROME_OOM: 'chrome_oom',
 };
 
 /**
@@ -119,6 +123,16 @@ exports.MessageTypes = {
     TEMPLATE_BUTTON_REPLY: 'template_button_reply',
     POLL_CREATION: 'poll_creation',
     SCHEDULED_EVENT_CREATION: 'scheduled_event_creation',
+};
+
+/**
+ * Message subtypes
+ * @readonly
+ * @enum {string}
+ */
+
+exports.MessageSubtypes = {
+    URL_LINK: 'url'
 };
 
 /**
