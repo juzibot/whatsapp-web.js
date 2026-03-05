@@ -72,6 +72,10 @@ client.on('ready', async () => {
         const roomChat = await client.getChatById(room.id._serialized);
         console.log(roomChat.name);
     }
+
+    const self = await client.getContactById(client.info.wid._serialized);
+    console.log(self);
+    console.log(await client.getProfilePicUrl(self.id._serialized));
 });
 
 client.on('message', async msg => {

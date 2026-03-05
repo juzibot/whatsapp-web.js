@@ -765,7 +765,7 @@ class Client extends EventEmitter {
         });
 
         await this.pupPage.evaluate(() => {
-            const { Msg, Chat, WAWebCallCollection } = window.require('WAWebCollections');
+            const { Msg, Chat, WAWebCallCollection, Contact } = window.require('WAWebCollections');
             const AppState = window.require('WAWebSocketModel').Socket;
             Msg.on('change', (msg) => { window.onChangeMessageEvent(window.WWebJS.getMessageModel(msg)); });
             Msg.on('change:type', (msg) => { window.onChangeMessageTypeEvent(window.WWebJS.getMessageModel(msg)); });
@@ -791,8 +791,8 @@ class Client extends EventEmitter {
                     }
                 }
             });
-            window.Store.Contact.on('change:name', (contact, newName, oldName) => {window.onContactNameChange(contact, newName, oldName);});
-            Chat.on('change:unreadCount', (chat) => {window.onChatUnreadCountEvent(chat);});
+            Contact.on('change:name', (contact, newName, oldName) => {window.onContactNameChange(contact, newName, oldName);});
+            Chat.on('chae:unreadCount', (chat) => {window.onChatUnreadCountEvent(chat);});
 
             window.WWebJS.injectToFunction({ module: 'WAWebAddonReactionTableMode', function: 'reactionTableMode.bulkUpsert'}, (module, origFunction, ...args) => {
                 window.onReaction(args[0].map(reaction => {

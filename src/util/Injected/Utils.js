@@ -89,6 +89,29 @@ exports.LoadUtils = () => {
 
     window.WWebJS.injectToFunction({ module: 'WAWebE2EProtoUtils', function: 'typeAttributeFromProtobuf' }, (module, func, ...args) => { const [proto] = args; return proto.locationMessage || proto.groupInviteMessage ? 'text' : func(...args); });
 
+
+    window.WWebJS.injectToFunction({ module: 'WAWebFileUtils', function: 'getAudioDuration'}, (module, func, ...args) => {
+        const [file] = args;
+        let src;
+        let audio;
+        return new Promise((resolve, reject) => {
+            audio = document.createElement('audio');
+            audio.addEventListener('loadeddata', resolve);
+            audio.addEventListener('error', (e) => {{
+                reject(e);
+            }});
+            src = URL.createObjectURL(file);
+            audio.src = src;
+        }).then(() => {
+            return ~~audio.seekable.end(0);
+        }).catch((e) => {
+            console.error(e);
+            return 5;
+        }).finally(() => {
+            src && URL.revokeObjectURL(src);
+        });
+    });
+
     
     window.WWebJS.forwardMessage = async (chatId, msgId) => {
         const msg = (window.require('WAWebCollections')).Msg.get(msgId) || (await (window.require('WAWebCollections')).Msg.getMessagesById([msgId]))?.messages?.[0];
