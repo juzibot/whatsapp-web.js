@@ -1331,6 +1331,13 @@ class Client extends EventEmitter {
             }
         }
 
+        if (msg.id.remote && msg.id.remote.endsWith('@lid')) {
+            const contactId = await this.getOriginalContactIdByLid(msg.id.remote);
+            if (contactId) {
+                msg.id.remote = contactId;
+            }
+        }
+
         if (msg.reactionParentKey?.participant && msg.reactionParentKey.participant.endsWith('@lid')) {
             const contactId = await this.getOriginalContactIdByLid(msg.reactionParentKey.participant);
             if (contactId) {
@@ -1356,6 +1363,14 @@ class Client extends EventEmitter {
             const contactId = await this.getOriginalContactIdByLid(msg.from);
             if (contactId) {
                 msg.from = contactId;
+            }
+        }
+
+
+        if (msg.to && msg.to.endsWith('@lid')) {
+            const contactId = await this.getOriginalContactIdByLid(msg.to);
+            if (contactId) {
+                msg.to = contactId;
             }
         }
 
