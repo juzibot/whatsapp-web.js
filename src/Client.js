@@ -120,8 +120,12 @@ class Client extends EventEmitter {
 
         // bridge browser log
         this.pupPage.on('console', msg => {
-            console.log('PUPPETEER PAGE LOG:', msg.text());
-            if (msg.text().includes('ERR_OUT_OF_MEMORY')) {
+            const text = msg.text();
+            console.log('PUPPETEER PAGE LOG:', text);
+            if (
+                text.includes('ERR_OUT_OF_MEMORY') ||
+                text.includes('ERR_BLOB_OUT_OF_MEMORY')
+            ) {
                 this.emit(Events.CHROME_OOM);
             }
         });
