@@ -263,7 +263,7 @@ exports.LoadUtils = () => {
             vcardOptions = {
                 body: window.require('WAWebFrontendVcardUtils').vcardFromContactModel(contact).vcard,
                 type: 'vcard',
-                vcardFormattedName: contactName,
+                vcardFormattedName: contact.formattedName,
             };
             delete options.contactCard;
         } else if (options.contactCardList) {
