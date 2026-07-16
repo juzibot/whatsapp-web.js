@@ -1151,9 +1151,14 @@ class Client extends EventEmitter {
                 : undefined;
         }, chatId, content, internalOptions, sendSeen);
 
-        return sentMsg
-            ? new Message(this, sentMsg)
-            : undefined;
+        if (!sentMsg) {
+            return undefined;
+        }
+
+        // 出站返回值与入站事件保持一致:把 @lid 归一化回 @c.us,避免 lid 漏到上层
+        await this.fixMessageLid(sentMsg);
+
+        return new Message(this, sentMsg);
     }
 
     /**
