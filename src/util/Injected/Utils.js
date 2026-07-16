@@ -752,7 +752,22 @@ exports.LoadUtils = () => {
                 chat = null;
             }
         } else {
-            chat = (window.require('WAWebCollections')).Chat.get(chatWid) || (await (window.require('WAWebFindChatAction')).findOrCreateLatestChat(chatWid))?.chat;
+            chat = (window.require('WAWebCollections')).Chat.get(chatWid);
+            if (!chat) {
+                try {
+                    chat = (await (window.require('WAWebFindChatAction')).findOrCreateLatestChat(chatWid))?.chat;
+                } catch (err) {
+                    // LID 寻址账号下会话按 @lid wid 存储,用 PN(@c.us)wid 调
+                    // findOrCreateLatestChat 会抛 WhatsApp 内部断言异常;
+                    // 映射到 lid wid 后重试,映射不到才原样抛出
+                    const { lid } = await window.WWebJS.enforceLidAndPnRetrieval(chatId);
+                    if (!lid) {
+                        throw err;
+                    }
+                    chat = (window.require('WAWebCollections')).Chat.get(lid)
+                        || (await (window.require('WAWebFindChatAction')).findOrCreateLatestChat(lid))?.chat;
+                }
+            }
         }
 
         return getAsModel && chat
