@@ -524,11 +524,15 @@ exports.LoadUtils = () => {
         }
 
         const [msgPromise, sendMsgResultPromise] = (window.require('WAWebSendMsgChatAction')).addAndSendMsgToChat(chat, message);
-        await msgPromise;
+        const sentMsg = await msgPromise;
 
         if (options.waitUntilMsgSent) await sendMsgResultPromise;
 
-        return (window.require('WAWebCollections')).Msg.get(newMsgKey._serialized);
+        // Msg.get can miss when the collection stores the message under a rewritten
+        // key (e.g. LID addressing), which made sendMessage resolve undefined even
+        // though the message was delivered. Fall back to the model resolved by
+        // addAndSendMsgToChat itself.
+        return (window.require('WAWebCollections')).Msg.get(newMsgKey._serialized) || sentMsg;
     };
 	
     window.WWebJS.editMessage = async (msg, content, options = {}) => {
