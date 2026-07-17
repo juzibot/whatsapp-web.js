@@ -1178,7 +1178,9 @@ class Client extends EventEmitter {
             const { createWid } = window.require('WAWebWidFactory');
             const channelWid = createWid(channelId);
             const chatWid = createWid(chatId);
-            const chat = window.require('WAWebCollections').Chat.get(chatWid) || (await (window.require('WAWebCollections')).Chat.find(chatWid));
+            // 新版页面 Chat 集合的 findImpl 已被移除,裸调 Chat.find 会抛 TypeError,
+            // 统一改用带降级链的 WWebJS.getChat(get → 内存扫描 → findOrCreateLatestChat)
+            const chat = await window.WWebJS.getChat(chatId, { getAsModel: false });
 
             if (!chatWid.isUser()) {
                 return false;
@@ -1422,7 +1424,7 @@ class Client extends EventEmitter {
     async getPinnedMessages(chatId) {
         const pinnedMsgs = await this.pupPage.evaluate(async (chatId) => {
             const chatWid = window.require('WAWebWidFactory').createWid(chatId);
-            const chat = (window.require('WAWebCollections')).Chat.get(chatWid) ?? await (window.require('WAWebCollections')).Chat.find(chatWid);
+            const chat = await window.WWebJS.getChat(chatId, { getAsModel: false });
             if (!chat) return [];
             
             const msgs = await (window.require('WAWebPinInChatSchema')).getTable().equals(['chatId'], chatWid.toString());
@@ -1683,7 +1685,7 @@ class Client extends EventEmitter {
      */
     async _muteUnmuteChat (chatId, action, unmuteDateTs) {
         return this.pupPage.evaluate(async (chatId, action, unmuteDateTs) => {
-            const chat = (window.require('WAWebCollections')).Chat.get(chatId) ?? await (window.require('WAWebCollections')).Chat.find(chatId);
+            const chat = await window.WWebJS.getChat(chatId, { getAsModel: false });
             action === 'MUTE'
                 ? await chat.mute.mute({ expiration: unmuteDateTs, sendDevice: true })
                 : await chat.mute.unmute({ sendDevice: true });
@@ -1890,7 +1892,6 @@ class Client extends EventEmitter {
             }
 
             parentGroupId && (parentGroupWid = window.require('WAWebWidFactory').createWid(parentGroupId));
-            participantWids.map(item => item.lid = item);
 
             try {
                 createGroupResult = await (window.require('WAWebGroupCreateJob')).createGroup(
@@ -1907,7 +1908,7 @@ class Client extends EventEmitter {
                     participantWids
                 );
             } catch (err) {
-                return 'CreateGroupError: An unknown error occupied while creating a group';
+                return 'CreateGroupError: ' + ((err && err.message) || err);
             }
 
             for (const participant of createGroupResult.participants) {
@@ -1919,7 +1920,7 @@ class Client extends EventEmitter {
                 if (autoSendInviteV4 && statusCode === 403) {
                     (window.require('WAWebCollections')).Contact.gadd(participant.wid, { silent: true });
                     const addParticipantResult = await (window.require('WAWebChatSendMessages')).sendGroupInviteMessage(
-                        (window.require('WAWebCollections')).Chat.get(participant.wid) || await (window.require('WAWebCollections')).Chat.find(participant.wid),
+                        await window.WWebJS.getChat(participantId, { getAsModel: false }),
                         createGroupResult.wid._serialized,
                         createGroupResult.subject,
                         participant.invite_code,
@@ -2532,8 +2533,7 @@ class Client extends EventEmitter {
      */
     async syncHistory(chatId) {
         return await this.pupPage.evaluate(async (chatId) => {
-            const chatWid = window.require('WAWebWidFactory').createWid(chatId);
-            const chat = (window.require('WAWebCollections')).Chat.get(chatWid) ?? (await (window.require('WAWebCollections')).Chat.find(chatWid));
+            const chat = await window.WWebJS.getChat(chatId, { getAsModel: false });
             if (chat?.endOfHistoryTransferType === 0) {
                 await (window.require('WAWebSendNonMessageDataRequest')).sendPeerDataOperationRequest(3, {
                     chatId: chat.id
