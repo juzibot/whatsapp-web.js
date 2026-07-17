@@ -1333,95 +1333,58 @@ class Client extends EventEmitter {
     }
 
     async fixMessageLid(msg) {
-        if (msg.id.participant && msg.id.participant.endsWith('@lid')) {
-            const contactId = await this.getOriginalContactIdByLid(msg.id.participant);
-            if (contactId) {
-                msg.id.participant = contactId;
+        // 字段可能是字符串,也可能是 serialize() 产出的 wid 对象
+        // (如 sendMessage 返回的模型),统一取字符串形式
+        const idOf = (value) => {
+            if (typeof value === 'string') return value;
+            return value?._serialized ?? value?.id?._serialized ?? null;
+        };
+        // 归一为字符串并把 @lid 换回原 contact id;
+        // 上层(puppet payload parser)按字符串消费这些字段
+        const fixIdField = async (obj, key) => {
+            if (!obj) return;
+            const id = idOf(obj[key]);
+            if (!id) return;
+            if (id.endsWith('@lid')) {
+                const contactId = await this.getOriginalContactIdByLid(id);
+                obj[key] = contactId || id;
+            } else if (typeof obj[key] !== 'string') {
+                obj[key] = id;
             }
-        }
+        };
 
-        if (msg.id.remote && msg.id.remote.endsWith('@lid')) {
-            const contactId = await this.getOriginalContactIdByLid(msg.id.remote);
-            if (contactId) {
-                msg.id.remote = contactId;
-            }
-        }
+        await fixIdField(msg.id, 'participant');
+        await fixIdField(msg.id, 'remote');
+        await fixIdField(msg.reactionParentKey, 'participant');
+        await fixIdField(msg.parentMsgKey, 'participant');
+        await fixIdField(msg.msgKey, 'participant');
+        await fixIdField(msg, 'from');
+        await fixIdField(msg, 'to');
+        await fixIdField(msg, 'author');
+        await fixIdField(msg, 'senderUserJid');
 
-        if (msg.reactionParentKey?.participant && msg.reactionParentKey.participant.endsWith('@lid')) {
-            const contactId = await this.getOriginalContactIdByLid(msg.reactionParentKey.participant);
-            if (contactId) {
-                msg.reactionParentKey.participant = contactId;
-            }
-        }
-
-        if (msg.parentMsgKey?.participant && msg.parentMsgKey.participant.endsWith('@lid')) {
-            const contactId = await this.getOriginalContactIdByLid(msg.parentMsgKey.participant);
-            if (contactId) {
-                msg.parentMsgKey.participant = contactId;
-            }
-        }
-
-        if (msg.msgKey?.participant && msg.msgKey.participant.endsWith('@lid')) {
-            const contactId = await this.getOriginalContactIdByLid(msg.msgKey.participant);
-            if (contactId) {
-                msg.msgKey.participant = contactId;
-            }
-        }
-
-        if (msg.from && msg.from.endsWith('@lid')) {
-            const contactId = await this.getOriginalContactIdByLid(msg.from);
-            if (contactId) {
-                msg.from = contactId;
-            }
-        }
-
-
-        if (msg.to && msg.to.endsWith('@lid')) {
-            const contactId = await this.getOriginalContactIdByLid(msg.to);
-            if (contactId) {
-                msg.to = contactId;
-            }
-        }
-
-        if (msg.author && msg.author.endsWith('@lid')) {
-            const contactId = await this.getOriginalContactIdByLid(msg.author);
-            if (contactId) {
-                msg.author = contactId;
-            }
-        }
-
-        if (msg.senderUserJid && msg.senderUserJid.endsWith('@lid')) {
-            const contactId = await this.getOriginalContactIdByLid(msg.senderUserJid);
-            if (contactId) {
-                msg.senderUserJid = contactId;
-            }
-        }
-        
         if (msg.recipients?.length) {
             await Promise.all(
-                msg.recipients.map(async (item, index) => {
-                    if (item.endsWith('@lid')) {
-                        const contactId = await this.getOriginalContactIdByLid(item);
-                        if (contactId) {
-                            msg.recipients[index] = contactId;
-                        }
-                    }
-                })
+                msg.recipients.map((_, index) => fixIdField(msg.recipients, index))
             );
         }
 
         if (msg.mentionedJidList?.length) {
             await Promise.all(
                 msg.mentionedJidList.map(async (item, index) => {
-                    const jid = typeof item === 'object' ? item.id._serialized : item;
-                    const contact = await this.getContactById(item);
-                    const contactId = contact?.id._serialized;
+                    const jid = idOf(item);
+                    if (!jid) return;
+                    const contact = await this.getContactById(jid).catch(() => null);
+                    const contactId = contact?.id?._serialized;
                     if (jid.endsWith('@lid') && contactId) {
                         msg.mentionedJidList[index] = contactId;
                     }
-                    msg.body = msg.body.replaceAll(`@${item.split('@')[0]}`, `@${contact.name || contact.pushname}`);
-                    if (contactId) {
-                        msg.body = msg.body.replaceAll(`@${contactId.split('@')[0]}`, `@${contact.name || contact.pushname}`);
+                    const displayName = contact?.name || contact?.pushname;
+                    if (displayName && typeof msg.body === 'string') {
+                        msg.body = msg.body.replaceAll(`@${jid.split('@')[0]}`, `@${displayName}`);
+                        if (contactId) {
+                            msg.body = msg.body.replaceAll(`@${contactId.split('@')[0]}`, `@${displayName}`);
+                        }
                     }
                 })
             );
