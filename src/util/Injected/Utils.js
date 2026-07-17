@@ -752,7 +752,19 @@ exports.LoadUtils = () => {
                 chat = null;
             }
         } else {
-            chat = (window.require('WAWebCollections')).Chat.get(chatWid);
+            // 新版页面 Chat.get 对部分 wid 会抛 memoize 校验异常,降级为 miss
+            try {
+                chat = (window.require('WAWebCollections')).Chat.get(chatWid);
+            } catch (err) {
+                chat = null;
+            }
+            // 键控查询 miss 时按 _serialized 扫描内存集合兜底
+            // (新版页面按 lid 域存储的会话,用 PN wid 推导的 key 查不到)
+            if (!chat) {
+                try {
+                    chat = (window.require('WAWebCollections')).Chat.getModelsArray().find(c => c?.id?._serialized === chatId);
+                } catch (err) { /* fall through to findOrCreateLatestChat */ }
+            }
             if (!chat) {
                 try {
                     chat = (await (window.require('WAWebFindChatAction')).findOrCreateLatestChat(chatWid))?.chat;
@@ -833,21 +845,31 @@ exports.LoadUtils = () => {
             model.isGroup = true;
             const chatWid = window.require('WAWebWidFactory').createWid(chat.id._serialized);
             const groupMetadata = (window.require('WAWebCollections')).GroupMetadata || (window.require('WAWebCollections')).WAWebGroupMetadataCollection;
-            await groupMetadata.update(chatWid);
-            chat.groupMetadata.participants._models
-                .filter(x => x.id?._serialized?.endsWith('@lid'))
-                .forEach(x => x.contact?.phoneNumber && (x.id = x.contact.phoneNumber));
+            try {
+                await groupMetadata.update(chatWid);
+            } catch (err) { /* 元数据刷新失败时使用缓存数据 */ }
+            // 对齐上游:serialize 后再转换,不原地修改页面活模型;
+            // lid 成员回填 PN 作为 id,原 lid 保存在 lid 字段
             model.groupMetadata = chat.groupMetadata.serialize();
-            model.groupMetadata.participants = chat.groupMetadata.participants._models.map(item => {
-                const result = item.serialize();
-                result.lid = result.id;
-                result.id = item.contact?.phoneNumber || result.lid;
-                return result;
+            model.groupMetadata.participants = (model.groupMetadata.participants || []).map(item => {
+                try {
+                    const rawId = item?.id?._serialized ?? item?.id;
+                    if (typeof rawId === 'string' && rawId.endsWith('@lid')) {
+                        item.lid = rawId;
+                        const pn = window.require('WAWebApiContact').getPhoneNumber(window.require('WAWebWidFactory').createWid(rawId));
+                        if (pn) item.id = pn._serialized || pn;
+                    }
+                } catch (err) { /* 保留原始 id */ }
+                return item;
             });
             if (chat.groupMetadata.owner) {
-                model.groupMetadata.lidOwner = chat.groupMetadata.owner;
-                const owner = await window.WWebJS.getContact(chat.groupMetadata.owner._serialized);
-                model.groupMetadata.owner = owner.id;
+                try {
+                    model.groupMetadata.lidOwner = chat.groupMetadata.owner;
+                    const owner = await window.WWebJS.getContact(chat.groupMetadata.owner._serialized);
+                    if (owner && owner.id) {
+                        model.groupMetadata.owner = owner.id;
+                    }
+                } catch (err) { /* 保留 serialize 产出的原始 owner */ }
             }
             model.isReadOnly = chat.groupMetadata.announce;
         }
@@ -861,10 +883,15 @@ exports.LoadUtils = () => {
 
         model.lastMessage = null;
         if (model.msgs && model.msgs.length) {
-            const lastMessage = chat.lastReceivedKey
-                ? (window.require('WAWebCollections')).Msg.get(chat.lastReceivedKey._serialized) || (await (window.require('WAWebCollections')).Msg.getMessagesById([chat.lastReceivedKey._serialized]))?.messages?.[0]
-                : null;
-            lastMessage && (model.lastMessage = window.WWebJS.getMessageModel(lastMessage));
+            // Msg.getMessagesById 走 IndexedDB,LID 群的 lastReceivedKey 推导不出
+            // DB key 会抛 DataError 并穿透整个 getChat;lastMessage 是附加信息,
+            // 失败时置 null 即可,不能让它中断会话序列化
+            try {
+                const lastMessage = chat.lastReceivedKey
+                    ? (window.require('WAWebCollections')).Msg.get(chat.lastReceivedKey._serialized) || (await (window.require('WAWebCollections')).Msg.getMessagesById([chat.lastReceivedKey._serialized]))?.messages?.[0]
+                    : null;
+                lastMessage && (model.lastMessage = window.WWebJS.getMessageModel(lastMessage));
+            } catch (err) { /* lastMessage 置 null */ }
         }
 
         delete model.msgs;
@@ -917,7 +944,15 @@ exports.LoadUtils = () => {
 
     window.WWebJS.getContacts = () => {
         const contacts = (window.require('WAWebCollections')).Contact.getModelsArray();
-        return contacts.map(contact => window.WWebJS.getContactModel(contact));
+        // 单个联系人序列化失败(新版页面 getter 对脏数据抛 memoize 校验异常)
+        // 只跳过该联系人,不能让整个联系人列表同步失败
+        return contacts.map(contact => {
+            try {
+                return window.WWebJS.getContactModel(contact);
+            } catch (err) {
+                return null;
+            }
+        }).filter(Boolean);
     };
 
     window.WWebJS.mediaInfoToFile = ({ data, mimetype, filename }) => {
@@ -1253,7 +1288,7 @@ exports.LoadUtils = () => {
 
     window.WWebJS.membershipRequestAction = async (groupId, action, requesterIds, sleep) => {
         const groupWid = window.require('WAWebWidFactory').createWid(groupId);
-        const group = await (window.require('WAWebCollections')).Chat.find(groupWid);
+        const group = await window.WWebJS.getChat(groupId, { getAsModel: false });
         const toApprove = action === 'Approve';
         let membershipRequests;
         let response;

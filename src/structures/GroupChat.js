@@ -82,7 +82,9 @@ class GroupChat extends Chat {
 
             !Array.isArray(participantIds) && (participantIds = [participantIds]);
             const groupWid = window.require('WAWebWidFactory').createWid(groupId);
-            const group = (window.require('WAWebCollections')).Chat.get(groupWid) || (await (window.require('WAWebCollections')).Chat.find(groupWid));
+            // 新版页面 Chat 集合的 findImpl 已被移除,裸调 Chat.find 会抛 TypeError,
+            // 统一改用带降级链的 WWebJS.getChat(get → 内存扫描 → findOrCreateLatestChat)
+            const group = await window.WWebJS.getChat(groupId, { getAsModel: false });
             const participantWids = participantIds.map((p) => window.require('WAWebWidFactory').createWid(p));
 
             const errorCodes = {
@@ -160,7 +162,7 @@ class GroupChat extends Chat {
                     (window.require('WAWebCollections')).Contact.gadd(pWid, { silent: true });
 
                     if (rpcResult.name === 'ParticipantRequestCodeCanBeSent' &&
-                        (userChat = (window.require('WAWebCollections')).Chat.get(pWid) || (await (window.require('WAWebCollections')).Chat.find(pWid)))) {
+                        (userChat = await window.WWebJS.getChat(pWid._serialized, { getAsModel: false }))) {
                         const groupName = group.formattedTitle || group.name;
                         const res = await (window.require('WAWebChatSendMessages')).sendGroupInviteMessage(
                             userChat,

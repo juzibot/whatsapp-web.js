@@ -524,7 +524,7 @@ class Message extends Base {
     async delete(everyone, clearMedia = true) {
         await this.client.pupPage.evaluate(async (msgId, everyone, clearMedia) => {
             const msg = (window.require('WAWebCollections')).Msg.get(msgId) || (await (window.require('WAWebCollections')).Msg.getMessagesById([msgId]))?.messages?.[0];
-            const chat = (window.require('WAWebCollections')).Chat.get(msg.id.remote) || (await (window.require('WAWebCollections')).Chat.find(msg.id.remote));
+            const chat = await window.WWebJS.getChat(msg.id.remote._serialized || msg.id.remote, { getAsModel: false });
             
             const canRevoke =
                 window.require('WAWebMsgActionCapability').canSenderRevokeMsg(msg) || window.require('WAWebMsgActionCapability').canAdminRevokeMsg(msg);
@@ -550,7 +550,7 @@ class Message extends Base {
         await this.client.pupPage.evaluate(async (msgId) => {
             const msg = (window.require('WAWebCollections')).Msg.get(msgId) || (await (window.require('WAWebCollections')).Msg.getMessagesById([msgId]))?.messages?.[0];
             if (window.require('WAWebMsgActionCapability').canStarMsg(msg)) {
-                let chat = await (window.require('WAWebCollections')).Chat.find(msg.id.remote);
+                let chat = await window.WWebJS.getChat(msg.id.remote._serialized || msg.id.remote, { getAsModel: false });
                 return (window.require('WAWebCmd').Cmd).sendStarMsgs(chat, [msg], false);
             }
         }, this.id._serialized);
@@ -563,7 +563,7 @@ class Message extends Base {
         await this.client.pupPage.evaluate(async (msgId) => {
             const msg = (window.require('WAWebCollections')).Msg.get(msgId) || (await (window.require('WAWebCollections')).Msg.getMessagesById([msgId]))?.messages?.[0];
             if (window.require('WAWebMsgActionCapability').canStarMsg(msg)) {
-                let chat = await (window.require('WAWebCollections')).Chat.find(msg.id.remote);
+                let chat = await window.WWebJS.getChat(msg.id.remote._serialized || msg.id.remote, { getAsModel: false });
                 return (window.require('WAWebCmd').Cmd).sendUnstarMsgs(chat, [msg], false);
             }
         }, this.id._serialized);
