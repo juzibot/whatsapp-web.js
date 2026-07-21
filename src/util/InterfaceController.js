@@ -48,7 +48,7 @@ class InterfaceController {
      */
     async openChatWindowAt(msgId) {
         await this.pupPage.evaluate(async (msgId) => {
-            const msg = (window.require('WAWebCollections')).Msg.get(msgId) || (await (window.require('WAWebCollections')).Msg.getMessagesById([msgId]))?.messages?.[0];
+            const msg = await window.WWebJS.getMsgById(msgId);
             const chat = await window.WWebJS.getChat(msg.id.remote._serialized || msg.id.remote, { getAsModel: false });
             const searchContext = await (window.require('WAWebChatMessageSearch')).getSearchContext(chat, msg.id);
             await (window.require('WAWebCmd').Cmd).openChatAt({ chat: chat, msgContext: searchContext });
@@ -61,7 +61,7 @@ class InterfaceController {
      */
     async openMessageDrawer(msgId) {
         await this.pupPage.evaluate(async msgId => {
-            const msg = (window.require('WAWebCollections')).Msg.get(msgId) || (await (window.require('WAWebCollections')).Msg.getMessagesById([msgId]))?.messages?.[0];
+            const msg = await window.WWebJS.getMsgById(msgId);
             await (window.require('WAWebCmd').Cmd).msgInfoDrawer(msg);
         }, msgId);
     }

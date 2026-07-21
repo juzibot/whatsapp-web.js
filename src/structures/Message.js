@@ -326,7 +326,7 @@ class Message extends Base {
      */
     async reload() {
         const newData = await this.client.pupPage.evaluate(async (msgId) => {
-            const msg = (window.require('WAWebCollections')).Msg.get(msgId) || (await (window.require('WAWebCollections')).Msg.getMessagesById([msgId]))?.messages?.[0];
+            const msg = await window.WWebJS.getMsgById(msgId);
             if (!msg) return null;
             return window.WWebJS.getMessageModel(msg);
         }, this.id._serialized);
@@ -385,7 +385,7 @@ class Message extends Base {
         if (!this.hasQuotedMsg) return undefined;
 
         const quotedMsg = await this.client.pupPage.evaluate(async (msgId) => {
-            const msg = (window.require('WAWebCollections')).Msg.get(msgId) || (await (window.require('WAWebCollections')).Msg.getMessagesById([msgId]))?.messages?.[0];
+            const msg = await window.WWebJS.getMsgById(msgId);
             const quotedMsg = window.require('WAWebQuotedMsgModelUtils').getQuotedMsgObj(msg);
             return window.WWebJS.getMessageModel(quotedMsg);
         }, this.id._serialized);
@@ -425,7 +425,7 @@ class Message extends Base {
         await this.client.pupPage.evaluate(async (messageId, reaction) => {
             if (!messageId) return null;
             const msg =
-                (window.require('WAWebCollections')).Msg.get(messageId) || (await (window.require('WAWebCollections')).Msg.getMessagesById([messageId]))?.messages?.[0];
+                await window.WWebJS.getMsgById(messageId);
             if(!msg) return null;
             await (window.require('WAWebSendReactionMsgAction'))(msg, reaction);
         }, this.id._serialized, reaction);
@@ -463,7 +463,7 @@ class Message extends Base {
         }
 
         const result = await this.client.pupPage.evaluate(async (msgId) => {
-            const msg = (window.require('WAWebCollections')).Msg.get(msgId) || (await (window.require('WAWebCollections')).Msg.getMessagesById([msgId]))?.messages?.[0];
+            const msg = await window.WWebJS.getMsgById(msgId);
 
             // REUPLOADING mediaStage means the media is expired and the download button is spinning, cannot be downloaded now
             if (!msg || !msg.mediaData || msg.mediaData.mediaStage === 'REUPLOADING') {
@@ -523,7 +523,7 @@ class Message extends Base {
      */
     async delete(everyone, clearMedia = true) {
         await this.client.pupPage.evaluate(async (msgId, everyone, clearMedia) => {
-            const msg = (window.require('WAWebCollections')).Msg.get(msgId) || (await (window.require('WAWebCollections')).Msg.getMessagesById([msgId]))?.messages?.[0];
+            const msg = await window.WWebJS.getMsgById(msgId);
             const chat = await window.WWebJS.getChat(msg.id.remote._serialized || msg.id.remote, { getAsModel: false });
             
             const canRevoke =
@@ -548,7 +548,7 @@ class Message extends Base {
      */
     async star() {
         await this.client.pupPage.evaluate(async (msgId) => {
-            const msg = (window.require('WAWebCollections')).Msg.get(msgId) || (await (window.require('WAWebCollections')).Msg.getMessagesById([msgId]))?.messages?.[0];
+            const msg = await window.WWebJS.getMsgById(msgId);
             if (window.require('WAWebMsgActionCapability').canStarMsg(msg)) {
                 let chat = await window.WWebJS.getChat(msg.id.remote._serialized || msg.id.remote, { getAsModel: false });
                 return (window.require('WAWebCmd').Cmd).sendStarMsgs(chat, [msg], false);
@@ -561,7 +561,7 @@ class Message extends Base {
      */
     async unstar() {
         await this.client.pupPage.evaluate(async (msgId) => {
-            const msg = (window.require('WAWebCollections')).Msg.get(msgId) || (await (window.require('WAWebCollections')).Msg.getMessagesById([msgId]))?.messages?.[0];
+            const msg = await window.WWebJS.getMsgById(msgId);
             if (window.require('WAWebMsgActionCapability').canStarMsg(msg)) {
                 let chat = await window.WWebJS.getChat(msg.id.remote._serialized || msg.id.remote, { getAsModel: false });
                 return (window.require('WAWebCmd').Cmd).sendUnstarMsgs(chat, [msg], false);
@@ -608,7 +608,7 @@ class Message extends Base {
      */
     async getInfo() {
         const info = await this.client.pupPage.evaluate(async (msgId) => {
-            const msg = (window.require('WAWebCollections')).Msg.get(msgId) || (await (window.require('WAWebCollections')).Msg.getMessagesById([msgId]))?.messages?.[0];
+            const msg = await window.WWebJS.getMsgById(msgId);
             if (!msg || !msg.id.fromMe) return null;
 
             return new Promise((resolve) => {
@@ -642,7 +642,7 @@ class Message extends Base {
     async getPayment() {
         if (this.type === MessageTypes.PAYMENT) {
             const msg = await this.client.pupPage.evaluate(async (msgId) => {
-                const msg = (window.require('WAWebCollections')).Msg.get(msgId) || (await (window.require('WAWebCollections')).Msg.getMessagesById([msgId]))?.messages?.[0];
+                const msg = await window.WWebJS.getMsgById(msgId);
                 if(!msg) return null;
                 return msg.serialize();
             }, this.id._serialized);
@@ -717,7 +717,7 @@ class Message extends Base {
             return null;
         }
         const messageEdit = await this.client.pupPage.evaluate(async (msgId, message, options) => {
-            const msg = (window.require('WAWebCollections')).Msg.get(msgId) || (await (window.require('WAWebCollections')).Msg.getMessagesById([msgId]))?.messages?.[0];
+            const msg = await window.WWebJS.getMsgById(msgId);
             if (!msg) return null;
 
             let canEdit = window.require('WAWebMsgActionCapability').canEditText(msg) || window.require('WAWebMsgActionCapability').canEditCaption(msg);
@@ -745,7 +745,7 @@ class Message extends Base {
         }
 
         const edittedEventMsg = await this.client.pupPage.evaluate(async (msgId, editedEventObject) => {
-            const msg = (window.require('WAWebCollections')).Msg.get(msgId) || (await (window.require('WAWebCollections')).Msg.getMessagesById([msgId]))?.messages?.[0];
+            const msg = await window.WWebJS.getMsgById(msgId);
             if (!msg) return null;
 
             const { name, startTimeTs, eventSendOptions } = editedEventObject;
@@ -787,7 +787,7 @@ class Message extends Base {
             if (!Array.isArray(votes)) votes = [votes];
             let localIdSet = new Set();
             const msg =
-                (window.require('WAWebCollections')).Msg.get(messageId) || (await (window.require('WAWebCollections')).Msg.getMessagesById([messageId]))?.messages?.[0];
+                await window.WWebJS.getMsgById(messageId);
             if (!msg) return null;
 
             msg.pollOptions.forEach(a => {
