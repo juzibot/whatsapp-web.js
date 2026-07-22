@@ -114,7 +114,7 @@ exports.LoadUtils = () => {
 
     
     window.WWebJS.forwardMessage = async (chatId, msgId) => {
-        const msg = (window.require('WAWebCollections')).Msg.get(msgId) || (await (window.require('WAWebCollections')).Msg.getMessagesById([msgId]))?.messages?.[0];
+        const msg = await window.WWebJS.getMsgById(msgId);
         const chat = await window.WWebJS.getChat(chatId, { getAsModel: false });
         return await (window.require('WAWebChatForwardMessage')).forwardMessages({'chat': chat, 'msgs' : [msg], 'multicast': true, 'includeCaption': true, 'appendedText' : undefined});
     };
@@ -162,8 +162,7 @@ exports.LoadUtils = () => {
 
         let quotedMsgOptions = {};
         if (options.quotedMessageId) {
-            let quotedMessage = (window.require('WAWebCollections')).Msg.get(options.quotedMessageId);
-            !quotedMessage && (quotedMessage = (await (window.require('WAWebCollections')).Msg.getMessagesById([options.quotedMessageId]))?.messages?.[0]);
+            let quotedMessage = await window.WWebJS.getMsgById(options.quotedMessageId);
             if (quotedMessage) {
 
                 const ReplyUtils = window.require('WAWebMsgReply');
@@ -737,6 +736,39 @@ exports.LoadUtils = () => {
         return msg;
     };
 
+    window.WWebJS.getMsgById = async (msgId) => {
+        const Msg = (window.require('WAWebCollections')).Msg;
+        let msg = null;
+        // 新版页面对部分 key 的 get 会抛 memoize 校验异常,降级为 miss
+        try {
+            msg = Msg.get(msgId);
+        } catch (err) {
+            msg = null;
+        }
+        // LID 会话的消息在页面集合按 lid 形态 key 存储,PN 形态的 key 查不到;
+        // 按 fromMe + 内层消息 id 扫描内存集合兜底
+        if (!msg) {
+            try {
+                const parts = String(msgId).split('_');
+                const innerId = parts[2];
+                if (innerId) {
+                    const fromMe = parts[0] === 'true';
+                    msg = Msg.getModelsArray().find(m => m?.id?.id === innerId && m?.id?.fromMe === fromMe);
+                }
+            } catch (err) { /* fall through */ }
+        }
+        // getMessagesById 走 IndexedDB,LID 形态 key 推导失败会抛 DataError,
+        // 不能让它把调用方(下载原图/撤回/标星等)整个打挂
+        if (!msg) {
+            try {
+                msg = (await Msg.getMessagesById([msgId]))?.messages?.[0];
+            } catch (err) {
+                msg = null;
+            }
+        }
+        return msg || null;
+    };
+
     window.WWebJS.getChat = async (chatId, { getAsModel = true } = {}) => {
         const isChannel = /@\w*newsletter\b/.test(chatId);
         const chatWid = window.require('WAWebWidFactory').createWid(chatId);
@@ -883,12 +915,11 @@ exports.LoadUtils = () => {
 
         model.lastMessage = null;
         if (model.msgs && model.msgs.length) {
-            // Msg.getMessagesById 走 IndexedDB,LID 群的 lastReceivedKey 推导不出
-            // DB key 会抛 DataError 并穿透整个 getChat;lastMessage 是附加信息,
-            // 失败时置 null 即可,不能让它中断会话序列化
+            // lastMessage 是附加信息,查找失败时置 null 即可,不能让它中断
+            // 会话序列化(getMsgById 内部已含 LID 兜底与 IDB 防御)
             try {
                 const lastMessage = chat.lastReceivedKey
-                    ? (window.require('WAWebCollections')).Msg.get(chat.lastReceivedKey._serialized) || (await (window.require('WAWebCollections')).Msg.getMessagesById([chat.lastReceivedKey._serialized]))?.messages?.[0]
+                    ? await window.WWebJS.getMsgById(chat.lastReceivedKey._serialized)
                     : null;
                 lastMessage && (model.lastMessage = window.WWebJS.getMessageModel(lastMessage));
             } catch (err) { /* lastMessage 置 null */ }
@@ -1401,7 +1432,7 @@ exports.LoadUtils = () => {
     };
 
     window.WWebJS.pinUnpinMsgAction = async (msgId, action, duration) => {
-        const message = (window.require('WAWebCollections')).Msg.get(msgId) || (await (window.require('WAWebCollections')).Msg.getMessagesById([msgId]))?.messages?.[0];
+        const message = await window.WWebJS.getMsgById(msgId);
         if (!message) return false;
 
         if (typeof duration !== 'number') return false;
