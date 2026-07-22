@@ -1356,6 +1356,21 @@ class Client extends EventEmitter {
         await fixIdField(msg.reactionParentKey, 'participant');
         await fixIdField(msg.parentMsgKey, 'participant');
         await fixIdField(msg.msgKey, 'participant');
+
+        // LID 消息的 MsgKey 序列化产物缺 _serialized(只带 lid 形态的 $1),
+        // 而缓存 payload 及媒体下载/撤回/标星等都依赖 id._serialized;
+        // 按修复后的 PN 形态字段统一重建,保持与 remote 改写一致
+        const rebuildKeySerialized = (key) => {
+            if (!key || key.id === undefined || key.fromMe === undefined) return;
+            const remote = idOf(key.remote);
+            if (!remote) return;
+            const participant = key.participant ? idOf(key.participant) : null;
+            key._serialized = `${key.fromMe}_${remote}_${key.id}${participant ? '_' + participant : ''}`;
+        };
+        rebuildKeySerialized(msg.id);
+        rebuildKeySerialized(msg.reactionParentKey);
+        rebuildKeySerialized(msg.parentMsgKey);
+        rebuildKeySerialized(msg.msgKey);
         await fixIdField(msg, 'from');
         await fixIdField(msg, 'to');
         await fixIdField(msg, 'author');
