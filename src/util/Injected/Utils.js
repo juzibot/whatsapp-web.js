@@ -965,7 +965,10 @@ exports.LoadUtils = () => {
     window.WWebJS.getContact = async contactId => {
         const wid = window.require('WAWebWidFactory').createWid(contactId);
         let contact = await (window.require('WAWebCollections')).Contact.find(wid);
-        if (contact.id._serialized.endsWith('@lid')) {
+        // Contact.find() 返回的是 Store 中全页面共享的活对象。phoneNumber 尚未映射出来时
+        // 若仍然覆写,会把 contact.id 写成 undefined 并持久污染该对象,
+        // 导致此后任意代码(含页面自身机制)碰到它都触发 getter 的 memoize 校验异常
+        if (contact.id && contact.id._serialized.endsWith('@lid') && contact.phoneNumber) {
             contact.id = contact.phoneNumber;
         }
         const bizProfile = await (window.require('WAWebCollections')).BusinessProfile.fetchBizProfile(wid);
