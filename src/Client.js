@@ -1325,6 +1325,9 @@ class Client extends EventEmitter {
 
             return contact?.id._serialized;
         } catch (err) {
+            // 这里原先静默返回 null,导致 LID 联系人序列化失败没有任何痕迹,
+            // 后续报错会出现在完全不相干的调用上,无法回溯来源
+            console.warn(`getOriginalContactIdByLid(${lid}) failed: ${err.message}`);
             return null;
         }
         
