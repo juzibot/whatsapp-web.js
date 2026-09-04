@@ -1026,23 +1026,29 @@ class Client extends EventEmitter {
     
         if (options.mentions) {
             const group = await this.getChatById(chatId);
+            // LID 灰度回填后 participant.id/lid 可能是字符串(getChatModel 中
+            // 回填 pn._serialized),老形态则是 {_serialized} 对象,两种都要认
+            const widToString = (wid) => typeof wid === 'string' ? wid : wid?._serialized;
             const participants = options.mentions.map(mention => {
-                const result = group.participants.find(participant => participant.id._serialized === mention);
+                const result = group.participants.find(participant =>
+                    widToString(participant.id) === mention || widToString(participant.lid) === mention
+                );
                 if (!result) {
                     throw new Error(`participant ${mention} is not in the group`);
                 }
                 return result;
             });
-            options.mentions = participants.map(participant => participant.lid._serialized);
+            options.mentions = participants.map(participant => widToString(participant.lid) || widToString(participant.id));
             !Array.isArray(options.mentions) && (options.mentions = [options.mentions]);
             if (options.mentions.some((possiblyContact) => possiblyContact instanceof Contact)) {
                 console.warn('Mentions with an array of Contact are now deprecated. See more at https://github.com/pedroslopez/whatsapp-web.js/pull/2166.');
                 options.mentions = options.mentions.map((a) => a.id._serialized);
             }
             for (const mentionedParticipant of participants) {
-                const contact = await this.getContactById(mentionedParticipant.id._serialized);
+                const contact = await this.getContactById(widToString(mentionedParticipant.id));
                 if (contact) {
-                    content = content.replaceAll(`@${contact.name}`, `@${mentionedParticipant.lid.user}`).replaceAll(`@${contact.pushname}`, `@${mentionedParticipant.lid.user}`);
+                    const mentionTag = (widToString(mentionedParticipant.lid) || widToString(mentionedParticipant.id)).split('@')[0];
+                    content = content.replaceAll(`@${contact.name}`, `@${mentionTag}`).replaceAll(`@${contact.pushname}`, `@${mentionTag}`);
                 }
             }
         }

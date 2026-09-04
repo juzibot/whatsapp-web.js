@@ -20,6 +20,6 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
 
       - name: install npm
-        run: npm install npm@latest -g
+        run: npm install npm@11 -g
             
       - run: npm publish --access public
