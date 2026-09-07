@@ -1029,15 +1029,41 @@ class Client extends EventEmitter {
             // LID 灰度回填后 participant.id/lid 可能是字符串(getChatModel 中
             // 回填 pn._serialized),老形态则是 {_serialized} 对象,两种都要认
             const widToString = (wid) => typeof wid === 'string' ? wid : wid?._serialized;
-            const participants = options.mentions.map(mention => {
-                const result = group.participants.find(participant =>
-                    widToString(participant.id) === mention || widToString(participant.lid) === mention
-                );
-                if (!result) {
-                    throw new Error(`participant ${mention} is not in the group`);
+            const findParticipant = (...candidates) => group.participants.find(participant =>
+                candidates.some(candidate => candidate && (
+                    widToString(participant.id) === candidate || widToString(participant.lid) === candidate
+                ))
+            );
+
+            const directHits = options.mentions.map(mention => findParticipant(mention));
+
+            // getChatModel 回填 PN 依赖 getPhoneNumber,拿不到号时该成员在
+            // participants 里只留 @lid 形态,而上游传的是 @c.us,直接比对必然落空。
+            // 只对落空的这几个反解一次 lid/pn 再匹配,正常路径不付出额外往返。
+            const unresolved = directHits.reduce(
+                (acc, participant, index) => participant ? acc : [...acc, index], []
+            );
+            let recovered = new Map();
+            if (unresolved.length) {
+                let pairs = [];
+                try {
+                    pairs = await this.getContactLidAndPhone(unresolved.map(index => options.mentions[index]));
+                } catch (err) {
+                    console.warn(`Failed to resolve lid/pn for unmatched mentions: ${err.message}`);
                 }
-                return result;
+                recovered = new Map(unresolved.map((index, i) => {
+                    const { lid, pn } = pairs[i] || {};
+                    return [index, findParticipant(lid, pn)];
+                }));
+            }
+
+            const participants = directHits.map((participant, index) => participant || recovered.get(index));
+            participants.forEach((participant, index) => {
+                if (!participant) {
+                    throw new Error(`participant ${options.mentions[index]} is not in the group`);
+                }
             });
+
             options.mentions = participants.map(participant => widToString(participant.lid) || widToString(participant.id));
             !Array.isArray(options.mentions) && (options.mentions = [options.mentions]);
             if (options.mentions.some((possiblyContact) => possiblyContact instanceof Contact)) {
