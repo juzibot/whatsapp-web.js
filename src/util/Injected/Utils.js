@@ -456,6 +456,10 @@ exports.LoadUtils = () => {
             ...extraOptions
         };
         
+        // MediaData's private __x_id field collides with Msg's internal id
+        // when its enumerable properties are spread into the message above.
+        delete message.__x_id;
+
         // Bot's won't reply if canonicalUrl is set (linking)
         if (botOptions) {
             delete message.canonicalUrl;
